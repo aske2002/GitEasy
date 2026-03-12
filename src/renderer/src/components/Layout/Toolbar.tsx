@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useRepoStore } from '../../store/repoStore'
 import { AccountsModal } from '../Modals/AccountsModal'
 
+declare const __APP_VERSION__: string
+
 export function Toolbar() {
   const { repoName, repoPath, fetchAll, pullCurrent, pushCurrent, forcePushCurrent, pushFailed, refresh, openRepo, operationInProgress } = useRepoStore()
   const [accountsOpen, setAccountsOpen] = useState(false)
@@ -115,6 +117,12 @@ export function Toolbar() {
           ↻ Restart to update v{updateVersion}
         </button>
       )}
+      <span
+        className="text-xs flex-shrink-0 select-none"
+        style={{ color: 'var(--color-text-secondary)', opacity: 0.45 }}
+      >
+        v{__APP_VERSION__}
+      </span>
       {accountsOpen && <AccountsModal onClose={() => setAccountsOpen(false)} />}
     </div>
   )

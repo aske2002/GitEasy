@@ -64,6 +64,8 @@ export interface RepoActions {
   createBranchFrom: (name: string, from: string) => Promise<void>
   deleteBranch: (name: string, force?: boolean) => Promise<void>
   renameBranch: (oldName: string, newName: string) => Promise<void>
+  pushTag: (name: string) => Promise<void>
+  deleteTag: (name: string) => Promise<void>
 
   stageFile: (filePath: string) => Promise<void>
   unstageFile: (filePath: string) => Promise<void>
@@ -354,6 +356,25 @@ export const useRepoStore = create<Store>((set, get) => ({
   },
 
   clearError: () => set({ operationError: null, error: null }),
+
+  pushTag: async (name) => {
+    const { repoPath } = get()
+    if (!repoPath) return
+    set({ operationInProgress: true, operationError: null })
+    const result = await window.git.pushTag(repoPath, name)
+    set({ operationInProgress: false })
+    if (!result.success) set({ operationError: result.error })
+  },
+
+  deleteTag: async (name) => {
+    const { repoPath } = get()
+    if (!repoPath) return
+    set({ operationInProgress: true, operationError: null })
+    const result = await window.git.deleteTag(repoPath, name)
+    set({ operationInProgress: false })
+    if (!result.success) { set({ operationError: result.error }); return }
+    await get().refresh()
+  },
 
   stageFile: async (filePath) => {
     const { repoPath } = get()

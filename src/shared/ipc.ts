@@ -37,6 +37,8 @@ export const IPC = {
   RENAME_BRANCH: 'git:renameBranch',
   CHERRY_PICK: 'git:cherryPick',
   CREATE_TAG: 'git:createTag',
+  PUSH_TAG: 'git:pushTag',
+  DELETE_TAG: 'git:deleteTag',
 
   // Staging & commit
   STAGE_FILE: 'git:stageFile',

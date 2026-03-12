@@ -62,6 +62,10 @@ const gitApi = {
     ipcRenderer.invoke(IPC.CHERRY_PICK, repoPath, hash),
   createTag: (repoPath: string, name: string, hash: string) =>
     ipcRenderer.invoke(IPC.CREATE_TAG, repoPath, name, hash),
+  pushTag: (repoPath: string, name: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.PUSH_TAG, repoPath, name),
+  deleteTag: (repoPath: string, name: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.DELETE_TAG, repoPath, name),
 
   // Auth (accounts) — token never leaves main process
   addAccount: (provider: string, host: string, token: string): Promise<AccountInfo> =>

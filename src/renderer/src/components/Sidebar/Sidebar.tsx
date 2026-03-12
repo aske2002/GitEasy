@@ -5,6 +5,7 @@ import { DndContext, closestCenter, DragEndEvent, DragStartEvent, DragOverlay } 
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { MergeRebaseDialog } from '../Modals/MergeRebaseDialog'
 import { BranchContextMenu } from './BranchContextMenu'
+import { TagContextMenu } from './TagContextMenu'
 import { ChangesPanel } from './ChangesPanel'
 
 type Section = 'local' | 'remote' | 'tags'
@@ -125,7 +126,7 @@ export function Sidebar() {
             onToggle={() => toggle('tags')}
           >
             {tags.map(ref => (
-              <BranchRow key={ref.name} ref_={ref} active={false} selected={false} onDoubleClick={() => {}} />
+              <TagRow key={ref.name} ref_={ref} />
             ))}
           </Section>
           </div>}
@@ -367,4 +368,39 @@ function groupByRemote(refs: RefInfo[]): [string, RefInfo[]][] {
     map.get(remoteName)!.push(ref)
   }
   return Array.from(map.entries())
+}
+
+function TagRow({ ref_ }: { ref_: RefInfo }) {
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
+  const [hovering, setHovering] = useState(false)
+
+  return (
+    <>
+      <div
+        className="flex items-center gap-2 px-3 py-1.5 select-none cursor-default"
+        style={{
+          background: hovering ? 'var(--color-bg-hover)' : 'transparent',
+          color: 'var(--color-text-primary)'
+        }}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }) }}
+        title="Right-click for options"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, opacity: 0.7 }}>
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+          <line x1="7" y1="7" x2="7.01" y2="7" />
+        </svg>
+        <span className="truncate flex-1">{ref_.name}</span>
+      </div>
+      {ctxMenu && (
+        <TagContextMenu
+          ref_={ref_}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
+    </>
+  )
 }

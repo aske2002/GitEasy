@@ -12,7 +12,7 @@ import {
   checkout, reset, merge, rebase,
   fetch, pull, push, forcePush, canFastForward,
   createBranch, deleteBranch, renameBranch,
-  cherryPick, createTag
+  cherryPick, createTag, pushTag, deleteTag
 } from '../git/checkout'
 import { startWatcher } from '../git/watcher'
 
@@ -177,5 +177,14 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
 
   ipcMain.handle(IPC.CREATE_TAG, async (_event, repoPath: string, name: string, hash: string) => {
     return createTag(repoPath, name, hash)
+  })
+
+  ipcMain.handle(IPC.PUSH_TAG, async (_event, repoPath: string, name: string) => {
+    const authUrl = await getRemoteAuthUrl(repoPath, store as any)
+    return pushTag(repoPath, name, authUrl ?? undefined)
+  })
+
+  ipcMain.handle(IPC.DELETE_TAG, async (_event, repoPath: string, name: string) => {
+    return deleteTag(repoPath, name)
   })
 }

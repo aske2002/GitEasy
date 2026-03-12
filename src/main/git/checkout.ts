@@ -144,3 +144,14 @@ export async function createTag(repoPath: string, name: string, hash: string): P
   const result = await runGit(repoPath, ['tag', name, hash])
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }
+
+export async function pushTag(repoPath: string, name: string, authUrl?: string): Promise<GitOperationResult> {
+  const remote = authUrl ?? 'origin'
+  const result = await runGit(repoPath, ['push', remote, `refs/tags/${name}`])
+  return { success: result.exitCode === 0, error: result.stderr || undefined }
+}
+
+export async function deleteTag(repoPath: string, name: string): Promise<GitOperationResult> {
+  const result = await runGit(repoPath, ['tag', '-d', name])
+  return { success: result.exitCode === 0, error: result.stderr || undefined }
+}

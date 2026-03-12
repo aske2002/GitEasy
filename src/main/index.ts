@@ -53,10 +53,6 @@ app.whenReady().then(() => {
   registerHandlers(store)
 
   // Auto-updater (only runs in packaged app, not dev)
-  if (!process.env['ELECTRON_RENDERER_URL']) {
-    autoUpdater.checkForUpdates()
-  }
-
   autoUpdater.on('update-available', (info) => {
     mainWindow?.webContents.send(IPC.UPDATE_AVAILABLE, info.version)
   })
@@ -73,6 +69,10 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC.UPDATE_CHECK, async () => {
     if (!process.env['ELECTRON_RENDERER_URL']) autoUpdater.checkForUpdates()
   })
+
+  if (!process.env['ELECTRON_RENDERER_URL']) {
+    autoUpdater.checkForUpdates()
+  }
 
   globalShortcut.register('CommandOrControl+O', () => {
     mainWindow?.webContents.send('menu:openRepo')

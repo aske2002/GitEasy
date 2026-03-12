@@ -9,7 +9,8 @@
     "preview": "electron-vite preview",
     "start": "electron-vite dev",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && electron-builder --win"
+    "dist:win": "npm run build && electron-builder --win",
+    "release": "bash scripts/release.sh"
   },
   "build": {
     "appId": "com.giteasy.app",
@@ -30,6 +31,12 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": {
+        "teamId": "${APPLE_TEAM_ID}"
+      },
       "target": [
         {
           "target": "dmg",

@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+out/
+dist/
+
+# Vite
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# electron-builder cache
+buildResources/

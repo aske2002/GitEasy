@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg-base: #0f1117;
+  --color-bg-panel: #161821;
+  --color-bg-surface: #1e2130;
+  --color-bg-hover: #252840;
+  --color-bg-selected: #2d3150;
+  --color-border: #2a2d3d;
+  --color-text-primary: #e8eaf6;
+  --color-text-secondary: #8b91b0;
+  --color-text-muted: #555a7a;
+  --color-accent: #7c8cf8;
+  --color-accent-hover: #9aa5ff;
+  --color-green: #4caf82;
+  --color-red: #e05c6a;
+  --color-yellow: #f0b555;
+  --color-blue: #5b9ef8;
+  --color-purple: #b07cf8;
+  --color-orange: #f0824a;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  padding: 0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Drag region for frameless window */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}

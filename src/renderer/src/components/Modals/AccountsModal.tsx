@@ -12,14 +12,14 @@ const PROVIDERS: { id: Provider; label: string; defaultHost: string; tokenUrl: s
     id: 'github',
     label: 'GitHub',
     defaultHost: 'github.com',
-    tokenUrl: 'https://github.com/settings/tokens/new?scopes=repo&description=GitAske',
+    tokenUrl: 'https://github.com/settings/tokens/new?scopes=repo&description=GitEasy',
     color: '#e6edf3'
   },
   {
     id: 'gitlab',
     label: 'GitLab',
     defaultHost: 'gitlab.com',
-    tokenUrl: 'https://gitlab.com/-/user_settings/personal_access_tokens/new?name=GitAske&scopes=read_user,write_repository',
+    tokenUrl: 'https://gitlab.com/-/user_settings/personal_access_tokens/new?name=GitEasy&scopes=read_user,write_repository',
     color: '#fc6d26'
   },
   {

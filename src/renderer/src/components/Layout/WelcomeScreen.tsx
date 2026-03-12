@@ -28,7 +28,7 @@ export function WelcomeScreen() {
           </svg>
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>GitAske</h1>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>GitEasy</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>A beautiful Git client</p>
         </div>
       </div>

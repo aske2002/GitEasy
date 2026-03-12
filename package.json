@@ -1,5 +1,5 @@
 {
-  "name": "gitaske",
+  "name": "giteasy",
   "version": "0.1.0",
   "description": "A beautiful, intuitive Git client",
   "main": "out/main/index.js",
@@ -12,13 +12,13 @@
     "dist:win": "npm run build && electron-builder --win"
   },
   "build": {
-    "appId": "com.gitaske.app",
-    "productName": "GitAske",
+    "appId": "com.giteasy.app",
+    "productName": "GitEasy",
     "publish": [
       {
         "provider": "github",
         "owner": "aske2002",
-        "repo": "GitAske"
+        "repo": "GitEasy"
       }
     ],
     "directories": {

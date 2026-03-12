@@ -48,7 +48,7 @@ export async function verifyAndAddAccount(
   if (host === 'github.com') {
     const data = await httpsGet('https://api.github.com/user', {
       Authorization: `Bearer ${token}`,
-      'User-Agent': 'GitAske/1.0',
+      'User-Agent': 'GitEasy/1.0',
       Accept: 'application/vnd.github+json'
     })
     const json = JSON.parse(data)
@@ -59,7 +59,7 @@ export async function verifyAndAddAccount(
     // GitLab (cloud or self-hosted)
     const data = await httpsGet(`https://${host}/api/v4/user`, {
       'PRIVATE-TOKEN': token,
-      'User-Agent': 'GitAske/1.0'
+      'User-Agent': 'GitEasy/1.0'
     })
     const json = JSON.parse(data)
     if (json.message || json.error) throw new Error(`GitLab: ${json.message ?? json.error}`)

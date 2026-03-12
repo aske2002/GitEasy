@@ -1,6 +1,6 @@
 {
   "name": "giteasy",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "A beautiful, intuitive Git client",
   "main": "out/main/index.js",
   "scripts": {
@@ -34,9 +34,7 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "notarize": {
-        "teamId": "${APPLE_TEAM_ID}"
-      },
+      "notarize": true,
       "target": [
         {
           "target": "dmg",

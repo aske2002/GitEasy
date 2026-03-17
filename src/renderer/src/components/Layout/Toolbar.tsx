@@ -6,7 +6,7 @@ import { CloneModal } from '../Modals/CloneModal'
 declare const __APP_VERSION__: string
 
 export function Toolbar() {
-  const { repoName, repoPath, fetchAll, pullCurrent, pushCurrent, forcePushCurrent, pushFailed, refresh, openRepo, operationInProgress, recentRepos, loadRecentRepos } = useRepoStore()
+  const { repoName, repoPath, fetchAll, pullCurrent, pushCurrent, forcePushCurrent, pushFailed, refresh, openRepo, operationInProgress, recentRepos, loadRecentRepos, status, createStash } = useRepoStore()
   const [accountsOpen, setAccountsOpen] = useState(false)
   const [cloneOpen, setCloneOpen] = useState(false)
   const [updateVersion, setUpdateVersion] = useState<string | null>(null)
@@ -32,6 +32,8 @@ export function Toolbar() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [repoPicker])
+
+  const hasChanges = status.some(f => f.staged || f.unstaged || f.untracked)
 
   return (
     <div
@@ -146,6 +148,13 @@ export function Toolbar() {
           title="Pull current branch"
         />
         <ToolbarBtn
+          icon={<StashIcon />}
+          label="Stash"
+          onClick={() => createStash(undefined, true)}
+          disabled={operationInProgress || !hasChanges}
+          title={hasChanges ? 'Stash current changes' : 'No changes to stash'}
+        />
+        <ToolbarBtn
           icon={<PushIcon />}
           label="Push"
           onClick={pushCurrent}
@@ -253,6 +262,13 @@ const FetchIcon = () => (
 const PullIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M12 5v14M5 12l7 7 7-7" />
+  </svg>
+)
+const StashIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="8" width="18" height="12" rx="2" />
+    <path d="M8 8V6a4 4 0 018 0v2" />
+    <path d="M3 12h18" />
   </svg>
 )
 const PushIcon = () => (

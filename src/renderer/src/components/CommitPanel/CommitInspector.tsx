@@ -174,10 +174,12 @@ function TreeView({
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <span style={{ fontSize: 8, opacity: 0.6, width: 8, flexShrink: 0 }}>
-                  {isCollapsed ? '▸' : '▾'}
+                <span style={{ width: 14, height: 14, flexShrink: 0, opacity: 0.85, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="12" height="12" viewBox="0 0 10 10" fill="currentColor"
+                    style={{ transform: isCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.12s' }}>
+                    <path d="M3 2l4 3-4 3z" />
+                  </svg>
                 </span>
-                <span style={{ opacity: 0.7, fontSize: 11, marginRight: 2 }}>📁</span>
                 <span className="font-medium truncate">{node.name}</span>
               </button>
               {!isCollapsed && (

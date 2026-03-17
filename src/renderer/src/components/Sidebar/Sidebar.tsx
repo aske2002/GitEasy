@@ -18,7 +18,7 @@ interface PendingOp {
 }
 
 export function Sidebar() {
-  const { refs, checkoutRef, mergeBranch, rebaseBranch, status, createStash, applyStash } = useRepoStore()
+  const { refs, checkoutRef, mergeBranch, rebaseBranch, status, createStash, applyStash, operationInProgress } = useRepoStore()
   const [tab, setTab] = useState<'branches' | 'changes'>('branches')
   const [expanded, setExpanded] = useState<Record<Section, boolean>>({
     local: true, remote: false, stashes: true, tags: false
@@ -63,6 +63,7 @@ export function Sidebar() {
   }
 
   const changesCount = status.filter(f => f.staged || f.unstaged || f.untracked).length
+  const hasChanges = changesCount > 0
 
   return (
     <>
@@ -146,13 +147,15 @@ export function Sidebar() {
               <button
                 onClick={async e => {
                   e.stopPropagation()
-                  const msg = window.prompt('Stash message (optional):', '')
-                  if (msg === null) return
-                  const includeUntracked = window.confirm('Include untracked files in this stash?')
-                  await createStash(msg.trim() || undefined, includeUntracked)
+                  await createStash(undefined, true)
                 }}
-                title="Create stash"
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '1px 6px', borderRadius: 3, color: 'var(--color-text-muted)', fontSize: 12 }}
+                disabled={!hasChanges || operationInProgress}
+                title={hasChanges ? 'Stash current changes' : 'No changes to stash'}
+                style={{
+                  background: 'transparent', border: 'none', cursor: hasChanges ? 'pointer' : 'default',
+                  padding: '1px 6px', borderRadius: 3, color: 'var(--color-text-muted)', fontSize: 12,
+                  opacity: hasChanges ? 1 : 0.4
+                }}
                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
               >

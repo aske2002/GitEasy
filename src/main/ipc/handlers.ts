@@ -7,7 +7,7 @@ import { getGraph } from '../git/log'
 import { getRefs } from '../git/refs'
 import { getStatus, stageFile, unstageFile, stageAll, unstageAll, commitChanges } from '../git/status'
 import { verifyAndAddAccount, listAccounts, removeAccount, getRemoteAuthUrl, listRemoteRepos, buildAuthCloneUrl } from '../git/auth'
-import { getCommitDiff, getFileDiff, getFileContent, getCommitFiles, restoreFile } from '../git/diff'
+import { getCommitDiff, getFileDiff, getFileContent, getCommitFiles, restoreFile, getWorkingDiff, getStagedDiff } from '../git/diff'
 import {
   checkout, reset, merge, rebase,
   fetch, pull, push, forcePush, canFastForward,
@@ -84,7 +84,13 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
   ipcMain.handle(IPC.RESTORE_FILE, async (_event, repoPath: string, hash: string, filePath: string) => {
     await restoreFile(repoPath, hash, filePath)
   })
+  ipcMain.handle(IPC.GET_WORKING_DIFF, async (_event, repoPath: string, filePath?: string) => {
+    return getWorkingDiff(repoPath, filePath)
+  })
 
+  ipcMain.handle(IPC.GET_STAGED_DIFF, async (_event, repoPath: string, filePath?: string) => {
+    return getStagedDiff(repoPath, filePath)
+  })
   ipcMain.handle(IPC.STAGE_FILE, async (_event, repoPath: string, filePath: string) => {
     await stageFile(repoPath, filePath)
   })

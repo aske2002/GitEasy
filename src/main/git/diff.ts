@@ -95,3 +95,19 @@ export async function restoreFile(
   if (result.exitCode !== 0) throw new Error(result.stderr)
   await fsPromises.writeFile(join(repoPath, filePath), result.stdout, 'utf-8')
 }
+
+export async function getWorkingDiff(repoPath: string, filePath?: string): Promise<DiffFile[]> {
+  const args = ['diff', '--patch', '--']
+  if (filePath) args.push(filePath)
+  const result = await runGit(repoPath, args)
+  if (result.exitCode !== 0) throw new Error(result.stderr)
+  return parsePatch(result.stdout)
+}
+
+export async function getStagedDiff(repoPath: string, filePath?: string): Promise<DiffFile[]> {
+  const args = ['diff', '--cached', '--patch', '--']
+  if (filePath) args.push(filePath)
+  const result = await runGit(repoPath, args)
+  if (result.exitCode !== 0) throw new Error(result.stderr)
+  return parsePatch(result.stdout)
+}

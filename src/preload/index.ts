@@ -18,6 +18,10 @@ const gitApi = {
     ipcRenderer.invoke(IPC.GET_COMMIT_DIFF, repoPath, hash),
   getFileDiff: (repoPath: string, hash: string, filePath: string) =>
     ipcRenderer.invoke(IPC.GET_FILE_DIFF, repoPath, hash, filePath),
+  getWorkingDiff: (repoPath: string, filePath?: string): Promise<import('../shared/ipc').DiffFile[]> =>
+    ipcRenderer.invoke(IPC.GET_WORKING_DIFF, repoPath, filePath),
+  getStagedDiff: (repoPath: string, filePath?: string): Promise<import('../shared/ipc').DiffFile[]> =>
+    ipcRenderer.invoke(IPC.GET_STAGED_DIFF, repoPath, filePath),
   getFileContent: (repoPath: string, hash: string, filePath: string): Promise<string> =>
     ipcRenderer.invoke(IPC.GET_FILE_CONTENT, repoPath, hash, filePath),
   getCommitFiles: (repoPath: string, hash: string): Promise<string[]> =>

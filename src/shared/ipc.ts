@@ -18,6 +18,8 @@ export const IPC = {
   // Diff
   GET_COMMIT_DIFF: 'git:getCommitDiff',
   GET_FILE_DIFF: 'git:getFileDiff',
+  GET_WORKING_DIFF: 'git:getWorkingDiff',
+  GET_STAGED_DIFF: 'git:getStagedDiff',
   GET_FILE_CONTENT: 'git:getFileContent',
   GET_COMMIT_FILES: 'git:getCommitFiles',
   RESTORE_FILE: 'git:restoreFile',

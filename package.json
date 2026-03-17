@@ -1,6 +1,6 @@
 {
   "name": "giteasy",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "A beautiful, intuitive Git client",
   "main": "out/main/index.js",
   "scripts": {

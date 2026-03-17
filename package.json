@@ -19,7 +19,8 @@
       {
         "provider": "github",
         "owner": "aske2002",
-        "repo": "GitEasy"
+        "repo": "GitEasy",
+        "releaseType": "release"
       }
     ],
     "directories": {

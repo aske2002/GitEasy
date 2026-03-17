@@ -7,6 +7,7 @@ import { MergeRebaseDialog } from '../Modals/MergeRebaseDialog'
 import { BranchContextMenu } from './BranchContextMenu'
 import { TagContextMenu } from './TagContextMenu'
 import { ChangesPanel } from './ChangesPanel'
+import { RemotesModal } from '../Modals/RemotesModal'
 
 type Section = 'local' | 'remote' | 'tags'
 
@@ -23,6 +24,7 @@ export function Sidebar() {
   })
   const [pendingOp, setPendingOp] = useState<PendingOp | null>(null)
   const [activeDrag, setActiveDrag] = useState<string | null>(null)
+  const [remotesOpen, setRemotesOpen] = useState(false)
 
   const local = refs.filter(r => r.type === 'local')
   const remotes = refs.filter(r => r.type === 'remote')
@@ -113,6 +115,20 @@ export function Sidebar() {
             count={remotes.length}
             open={expanded.remote}
             onToggle={() => toggle('remote')}
+            action={
+              <button
+                onClick={e => { e.stopPropagation(); setRemotesOpen(true) }}
+                title="Manage remotes"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '1px 4px', borderRadius: 3, color: 'var(--color-text-muted)', fontSize: 10 }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+                </svg>
+              </button>
+            }
           >
             {groupByRemote(remotes).map(([remote, branches]) => (
               <RemoteGroup key={remote} name={remote} branches={branches} onDoubleClick={checkoutRef} />
@@ -153,38 +169,43 @@ export function Sidebar() {
           onCancel={() => setPendingOp(null)}
         />
       )}
+      {remotesOpen && <RemotesModal onClose={() => setRemotesOpen(false)} />}
     </>
   )
 }
 
 function Section({
-  label, count, open, onToggle, children
+  label, count, open, onToggle, children, action
 }: {
   label: string
   count: number
   open: boolean
   onToggle: () => void
   children: React.ReactNode
+  action?: React.ReactNode
 }) {
   return (
     <div className="flex flex-col">
-      <button
-        onClick={onToggle}
-        className="flex items-center gap-1 px-3 py-2 font-semibold text-left w-full"
-        style={{ color: 'var(--color-text-muted)' }}
-        onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-secondary)')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-      >
-        <svg
-          width="10" height="10"
-          viewBox="0 0 10 10" fill="currentColor"
-          style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}
+      <div className="flex items-center">
+        <button
+          onClick={onToggle}
+          className="flex-1 flex items-center gap-1 px-3 py-2 font-semibold text-left"
+          style={{ color: 'var(--color-text-muted)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-secondary)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
         >
-          <path d="M3 2l4 3-4 3z" />
-        </svg>
-        <span>{label}</span>
-        <span className="ml-auto font-normal">{count}</span>
-      </button>
+          <svg
+            width="10" height="10"
+            viewBox="0 0 10 10" fill="currentColor"
+            style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}
+          >
+            <path d="M3 2l4 3-4 3z" />
+          </svg>
+          <span>{label}</span>
+          <span className="ml-auto font-normal">{count}</span>
+        </button>
+        {action && <div className="pr-2">{action}</div>}
+      </div>
       {open && children}
     </div>
   )

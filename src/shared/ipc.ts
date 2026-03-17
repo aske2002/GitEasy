@@ -56,6 +56,13 @@ export const IPC = {
   AUTH_REMOVE_ACCOUNT: 'auth:removeAccount',
   LIST_REMOTE_REPOS: 'auth:listRemoteRepos',
 
+  // Remotes management
+  LIST_REMOTES: 'git:listRemotes',
+  ADD_REMOTE: 'git:addRemote',
+  REMOVE_REMOTE: 'git:removeRemote',
+  RENAME_REMOTE: 'git:renameRemote',
+  SET_REMOTE_URL: 'git:setRemoteUrl',
+
   // Clone
   CLONE_REPO: 'git:cloneRepo',
   CHOOSE_DIRECTORY: 'fs:chooseDirectory',
@@ -90,6 +97,12 @@ export interface CommitRaw {
   subject: string
   body: string
   refs: string[]
+}
+
+export interface RemoteConfig {
+  name: string
+  fetchUrl: string
+  pushUrl: string
 }
 
 export interface RefInfo {

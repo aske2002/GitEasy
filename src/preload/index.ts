@@ -82,6 +82,16 @@ const gitApi = {
     ipcRenderer.invoke(IPC.AUTH_REMOVE_ACCOUNT, host, username),
   listRemoteRepos: (host: string): Promise<RemoteRepo[]> =>
     ipcRenderer.invoke(IPC.LIST_REMOTE_REPOS, host),
+  listRemotes: (repoPath: string): Promise<import('../shared/ipc').RemoteConfig[]> =>
+    ipcRenderer.invoke(IPC.LIST_REMOTES, repoPath),
+  addRemote: (repoPath: string, name: string, url: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.ADD_REMOTE, repoPath, name, url),
+  removeRemote: (repoPath: string, name: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.REMOVE_REMOTE, repoPath, name),
+  renameRemote: (repoPath: string, oldName: string, newName: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.RENAME_REMOTE, repoPath, oldName, newName),
+  setRemoteUrl: (repoPath: string, name: string, url: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.SET_REMOTE_URL, repoPath, name, url),
   cloneRepo: (cloneUrl: string, parentDir: string, repoName: string): Promise<{ success: boolean; clonedPath?: string; error?: string }> =>
     ipcRenderer.invoke(IPC.CLONE_REPO, cloneUrl, parentDir, repoName),
   chooseDirectory: (): Promise<string | null> =>

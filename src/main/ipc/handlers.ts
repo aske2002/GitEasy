@@ -8,6 +8,7 @@ import { getRefs } from '../git/refs'
 import { getStatus, stageFile, unstageFile, stageAll, unstageAll, commitChanges } from '../git/status'
 import { verifyAndAddAccount, listAccounts, removeAccount, getRemoteAuthUrl, listRemoteRepos, buildAuthCloneUrl } from '../git/auth'
 import { getCommitDiff, getFileDiff, getFileContent, getCommitFiles, restoreFile, getWorkingDiff, getStagedDiff } from '../git/diff'
+import { listRemotes, addRemote, removeRemote, renameRemote, setRemoteUrl } from '../git/remotes'
 import {
   checkout, reset, merge, rebase,
   fetch, pull, push, forcePush, canFastForward,
@@ -175,6 +176,26 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
 
   ipcMain.handle(IPC.DELETE_REMOTE_BRANCH, async (_event, repoPath: string, remote: string, branchName: string) => {
     return deleteRemoteBranch(repoPath, remote, branchName)
+  })
+
+  ipcMain.handle(IPC.LIST_REMOTES, async (_event, repoPath: string) => {
+    return listRemotes(repoPath)
+  })
+
+  ipcMain.handle(IPC.ADD_REMOTE, async (_event, repoPath: string, name: string, url: string) => {
+    return addRemote(repoPath, name, url)
+  })
+
+  ipcMain.handle(IPC.REMOVE_REMOTE, async (_event, repoPath: string, name: string) => {
+    return removeRemote(repoPath, name)
+  })
+
+  ipcMain.handle(IPC.RENAME_REMOTE, async (_event, repoPath: string, oldName: string, newName: string) => {
+    return renameRemote(repoPath, oldName, newName)
+  })
+
+  ipcMain.handle(IPC.SET_REMOTE_URL, async (_event, repoPath: string, name: string, url: string) => {
+    return setRemoteUrl(repoPath, name, url)
   })
 
   ipcMain.handle(IPC.RENAME_BRANCH, async (_event, repoPath: string, oldName: string, newName: string) => {

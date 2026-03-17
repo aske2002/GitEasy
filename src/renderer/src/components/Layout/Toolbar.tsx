@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRepoStore } from '../../store/repoStore'
 import { AccountsModal } from '../Modals/AccountsModal'
 import { CloneModal } from '../Modals/CloneModal'
@@ -6,11 +6,13 @@ import { CloneModal } from '../Modals/CloneModal'
 declare const __APP_VERSION__: string
 
 export function Toolbar() {
-  const { repoName, repoPath, fetchAll, pullCurrent, pushCurrent, forcePushCurrent, pushFailed, refresh, openRepo, operationInProgress } = useRepoStore()
+  const { repoName, repoPath, fetchAll, pullCurrent, pushCurrent, forcePushCurrent, pushFailed, refresh, openRepo, operationInProgress, recentRepos, loadRecentRepos } = useRepoStore()
   const [accountsOpen, setAccountsOpen] = useState(false)
   const [cloneOpen, setCloneOpen] = useState(false)
   const [updateVersion, setUpdateVersion] = useState<string | null>(null)
   const [updateReady, setUpdateReady] = useState(false)
+  const [repoPicker, setRepoPicker] = useState(false)
+  const repoPickerRef = useRef<HTMLDivElement>(null)
 
   useState(() => {
     const offAvailable = window.git.onUpdateAvailable(v => setUpdateVersion(v))
@@ -18,31 +20,105 @@ export function Toolbar() {
     return () => { offAvailable(); offDownloaded() }
   })
 
+  useEffect(() => {
+    loadRecentRepos()
+  }, [])
+
+  useEffect(() => {
+    if (!repoPicker) return
+    const handler = (e: MouseEvent) => {
+      if (!repoPickerRef.current?.contains(e.target as Node)) setRepoPicker(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [repoPicker])
+
   return (
     <div
-      className="flex items-center gap-2 px-4 h-12 border-b flex-shrink-0 drag-region"
+      className="flex items-center gap-2 px-4 h-12 border-b shrink-0 drag-region"
       style={{ background: 'var(--color-bg-panel)', borderColor: 'var(--color-border)' }}
     >
       {/* macOS traffic light spacer */}
-      <div className="w-16 flex-shrink-0" />
+      <div className="w-16 shrink-0" />
 
-      {/* Repo name */}
-      <div
-        className="flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer no-drag"
-        style={{ background: 'var(--color-bg-surface)' }}
-        onClick={() => openRepo()}
-        title={repoPath ?? ''}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M3 3h18v18H3z" />
-          <path d="M3 9h18M9 21V9" />
-        </svg>
-        <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
-          {repoName ?? 'Open Repository'}
-        </span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M6 9l6 6 6-6" />
-        </svg>
+      {/* Repo name / picker */}
+      <div className="relative no-drag" ref={repoPickerRef}>
+        <div
+          className="flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer"
+          style={{ background: 'var(--color-bg-surface)' }}
+          onClick={() => setRepoPicker(v => !v)}
+          title={repoPath ?? 'Open a repository'}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 3h18v18H3z" />
+            <path d="M3 9h18M9 21V9" />
+          </svg>
+          <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+            {repoName ?? 'Open Repository'}
+          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            style={{ transform: repoPicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </div>
+
+        {repoPicker && (
+          <div
+            className="absolute left-0 top-full mt-1 rounded-xl overflow-hidden border z-50"
+            style={{
+              minWidth: 280, maxWidth: 380,
+              background: 'var(--color-bg-panel)',
+              borderColor: 'var(--color-border)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.25)'
+            }}
+          >
+            {recentRepos.length > 0 && (
+              <>
+                <div className="px-3 py-2" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>
+                  Recent Repositories
+                </div>
+                {recentRepos.map(path => {
+                  const name = path.split('/').pop() ?? path
+                  const isActive = path === repoPath
+                  return (
+                    <button
+                      key={path}
+                      onClick={() => { setRepoPicker(false); if (!isActive) openRepo(path) }}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left"
+                      style={{
+                        background: isActive ? 'var(--color-bg-hover)' : 'transparent',
+                        border: 'none', borderBottom: '1px solid var(--color-border)', cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = isActive ? 'var(--color-bg-hover)' : 'transparent')}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, color: isActive ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
+                        <path d="M3 3h18v18H3z" /><path d="M3 9h18M9 21V9" />
+                      </svg>
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? 'var(--color-accent)' : 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{path}</div>
+                      </div>
+                      {isActive && <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--color-accent)" stroke="none" style={{ marginLeft: 'auto', flexShrink: 0 }}><path d="M20 6L9 17l-5-5" stroke="var(--color-accent)" strokeWidth="2.5" fill="none"/></svg>}
+                    </button>
+                  )
+                })}
+              </>
+            )}
+            <button
+              onClick={() => { setRepoPicker(false); openRepo() }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-left"
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, color: 'var(--color-text-muted)' }}>
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+              </svg>
+              <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Browse for folder…</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1" />
@@ -110,14 +186,14 @@ export function Toolbar() {
         </div>
       )}
       {updateVersion && !updateReady && (
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs no-drag flex-shrink-0"
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs no-drag shrink-0"
           style={{ background: 'rgba(124,140,248,0.12)', color: 'var(--color-accent)', border: '1px solid rgba(124,140,248,0.25)' }}>
           ↓ v{updateVersion} downloading…
         </div>
       )}
       {updateVersion && updateReady && (
         <button
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold no-drag flex-shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold no-drag shrink-0"
           style={{ background: 'var(--color-accent)', color: 'white', border: 'none', cursor: 'pointer' }}
           onClick={() => window.git.installUpdate()}
           title={`Restart to install v${updateVersion}`}
@@ -126,7 +202,7 @@ export function Toolbar() {
         </button>
       )}
       <span
-        className="text-xs flex-shrink-0 select-none"
+        className="text-xs shrink-0 select-none"
         style={{ color: 'var(--color-text-secondary)', opacity: 0.45 }}
       >
         v{__APP_VERSION__}

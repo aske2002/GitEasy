@@ -14,17 +14,17 @@ export async function getRefs(repoPath: string): Promise<RefInfo[]> {
   const branchResult = await runGit(repoPath, [
     'branch',
     '-a',
-    '--format=%(refname)\t%(refname:short)\t%(objectname)\t%(upstream:short)\t%(upstream:track)'
+    '--format=%(refname)\t%(refname:short)\t%(objectname)\t%(upstream:short)\t%(upstream:track)\t%(symref)'
   ])
 
   for (const line of branchResult.stdout.split('\n')) {
     const parts = line.split('\t').map(p => p.trim())
     if (parts.length < 3) continue
-    const [refname, shortName, hash, upstream, track] = parts
+    const [refname, shortName, hash, upstream, track, symref] = parts
 
     if (!refname || !shortName || !hash) continue
-    // Skip symbolic refs (e.g. refs/remotes/origin/HEAD -> origin/main)
-    if (hash.includes(' ') || hash.includes('->')) continue
+    // Skip symbolic refs (e.g. refs/remotes/origin/HEAD → may appear as "origin")
+    if (hash.includes(' ') || hash.includes('->') || symref) continue
 
     const isRemote = refname.startsWith('refs/remotes/')
 
@@ -64,6 +64,29 @@ export async function getRefs(repoPath: string): Promise<RefInfo[]> {
     const hash = derefHash.trim() || ownHash.trim()
     if (!hash) continue
     refs.push({ name, hash, type: 'tag', isHead: false })
+  }
+
+  // Get stashes (stash@{0}, stash@{1}, ...)
+  const stashResult = await runGit(repoPath, [
+    'stash',
+    'list',
+    '--format=%gd\t%H\t%gs'
+  ])
+
+  if (stashResult.exitCode === 0) {
+    for (const line of stashResult.stdout.split('\n')) {
+      const parts = line.trim().split('\t')
+      if (parts.length < 3) continue
+      const [name, hash, message] = parts
+      if (!name || !hash) continue
+      refs.push({
+        name,
+        hash,
+        type: 'stash',
+        isHead: false,
+        stashMessage: message || undefined
+      })
+    }
   }
 
   return refs

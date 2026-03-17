@@ -73,6 +73,10 @@ export interface RepoActions {
   stageAll: () => Promise<void>
   unstageAll: () => Promise<void>
   commitChanges: (message: string) => Promise<{ success: boolean; error?: string }>
+  createStash: (message?: string, includeUntracked?: boolean) => Promise<void>
+  popStash: (stashRef: string) => Promise<void>
+  applyStash: (stashRef: string) => Promise<void>
+  dropStash: (stashRef: string) => Promise<void>
 
   clearError: () => void
 }
@@ -421,5 +425,45 @@ export const useRepoStore = create<Store>((set, get) => ({
     const result = await window.git.commit(repoPath, message)
     if (result.success) await get().refresh()
     return result
+  },
+
+  createStash: async (message, includeUntracked = true) => {
+    const { repoPath } = get()
+    if (!repoPath) return
+    set({ operationInProgress: true, operationError: null })
+    const result = await window.git.createStash(repoPath, message, includeUntracked)
+    set({ operationInProgress: false })
+    if (!result.success) { set({ operationError: result.error }); return }
+    await get().refresh()
+  },
+
+  popStash: async (stashRef) => {
+    const { repoPath } = get()
+    if (!repoPath) return
+    set({ operationInProgress: true, operationError: null })
+    const result = await window.git.popStash(repoPath, stashRef)
+    set({ operationInProgress: false })
+    if (!result.success) { set({ operationError: result.error }); return }
+    await get().refresh()
+  },
+
+  applyStash: async (stashRef) => {
+    const { repoPath } = get()
+    if (!repoPath) return
+    set({ operationInProgress: true, operationError: null })
+    const result = await window.git.applyStash(repoPath, stashRef)
+    set({ operationInProgress: false })
+    if (!result.success) { set({ operationError: result.error }); return }
+    await get().refresh()
+  },
+
+  dropStash: async (stashRef) => {
+    const { repoPath } = get()
+    if (!repoPath) return
+    set({ operationInProgress: true, operationError: null })
+    const result = await window.git.dropStash(repoPath, stashRef)
+    set({ operationInProgress: false })
+    if (!result.success) { set({ operationError: result.error }); return }
+    await get().refresh()
   },
 }))

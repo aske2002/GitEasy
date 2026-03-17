@@ -17,12 +17,18 @@ const FORMAT = [
 ].join(SEP)
 
 export async function getGraph(repoPath: string): Promise<CommitRaw[]> {
+  const stashList = await runGit(repoPath, ['stash', 'list', '--format=%H'])
+  const stashHashes = stashList.exitCode === 0
+    ? Array.from(new Set(stashList.stdout.split('\n').map(h => h.trim()).filter(Boolean)))
+    : []
+
   const result = await runGit(repoPath, [
     'log',
     '--all',
     '--topo-order',
     `--format=${FORMAT}${REC}`,
-    '--decorate=full'
+    '--decorate=full',
+    ...stashHashes
   ])
 
   if (result.exitCode !== 0) {

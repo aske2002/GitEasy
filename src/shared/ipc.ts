@@ -49,6 +49,10 @@ export const IPC = {
   STAGE_ALL: 'git:stageAll',
   UNSTAGE_ALL: 'git:unstageAll',
   COMMIT: 'git:commit',
+  CREATE_STASH: 'git:createStash',
+  POP_STASH: 'git:popStash',
+  APPLY_STASH: 'git:applyStash',
+  DROP_STASH: 'git:dropStash',
 
   // Auth (accounts)
   AUTH_ADD_ACCOUNT: 'auth:addAccount',
@@ -108,11 +112,12 @@ export interface RemoteConfig {
 export interface RefInfo {
   name: string
   hash: string
-  type: 'local' | 'remote' | 'tag'
+  type: 'local' | 'remote' | 'tag' | 'stash'
   isHead: boolean
   upstream?: string
   ahead?: number
   behind?: number
+  stashMessage?: string
 }
 
 export interface StatusFile {

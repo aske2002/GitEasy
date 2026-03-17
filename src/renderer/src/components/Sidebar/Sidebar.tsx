@@ -6,10 +6,11 @@ import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { MergeRebaseDialog } from '../Modals/MergeRebaseDialog'
 import { BranchContextMenu } from './BranchContextMenu'
 import { TagContextMenu } from './TagContextMenu'
+import { StashContextMenu } from './StashContextMenu'
 import { ChangesPanel } from './ChangesPanel'
 import { RemotesModal } from '../Modals/RemotesModal'
 
-type Section = 'local' | 'remote' | 'tags'
+type Section = 'local' | 'remote' | 'stashes' | 'tags'
 
 interface PendingOp {
   source: string
@@ -17,10 +18,10 @@ interface PendingOp {
 }
 
 export function Sidebar() {
-  const { refs, selectedRef, checkoutRef, mergeBranch, rebaseBranch, status } = useRepoStore()
+  const { refs, checkoutRef, mergeBranch, rebaseBranch, status, createStash, applyStash } = useRepoStore()
   const [tab, setTab] = useState<'branches' | 'changes'>('branches')
   const [expanded, setExpanded] = useState<Record<Section, boolean>>({
-    local: true, remote: false, tags: false
+    local: true, remote: false, stashes: true, tags: false
   })
   const [pendingOp, setPendingOp] = useState<PendingOp | null>(null)
   const [activeDrag, setActiveDrag] = useState<string | null>(null)
@@ -28,6 +29,7 @@ export function Sidebar() {
 
   const local = refs.filter(r => r.type === 'local')
   const remotes = refs.filter(r => r.type === 'remote')
+  const stashes = refs.filter(r => r.type === 'stash')
   const tags = refs.filter(r => r.type === 'tag')
 
   const toggle = (key: Section) =>
@@ -132,6 +134,34 @@ export function Sidebar() {
           >
             {groupByRemote(remotes).map(([remote, branches]) => (
               <RemoteGroup key={remote} name={remote} branches={branches} onDoubleClick={checkoutRef} />
+            ))}
+          </Section>
+
+          <Section
+            label="STASHES"
+            count={stashes.length}
+            open={expanded.stashes}
+            onToggle={() => toggle('stashes')}
+            action={
+              <button
+                onClick={async e => {
+                  e.stopPropagation()
+                  const msg = window.prompt('Stash message (optional):', '')
+                  if (msg === null) return
+                  const includeUntracked = window.confirm('Include untracked files in this stash?')
+                  await createStash(msg.trim() || undefined, includeUntracked)
+                }}
+                title="Create stash"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '1px 6px', borderRadius: 3, color: 'var(--color-text-muted)', fontSize: 12 }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+              >
+                +
+              </button>
+            }
+          >
+            {stashes.map(ref => (
+              <StashRow key={ref.name} ref_={ref} onDoubleClick={() => applyStash(ref.name)} />
             ))}
           </Section>
 
@@ -434,6 +464,48 @@ function TagRow({ ref_ }: { ref_: RefInfo }) {
       </div>
       {ctxMenu && (
         <TagContextMenu
+          ref_={ref_}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
+    </>
+  )
+}
+
+function StashRow({ ref_, onDoubleClick }: { ref_: RefInfo; onDoubleClick: () => void }) {
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
+  const [hovering, setHovering] = useState(false)
+
+  return (
+    <>
+      <div
+        className="flex items-center gap-2 px-3 py-1.5 select-none cursor-pointer"
+        style={{
+          background: hovering ? 'var(--color-bg-hover)' : 'transparent',
+          color: 'var(--color-text-primary)'
+        }}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        onDoubleClick={onDoubleClick}
+        onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }) }}
+        title="Double-click to apply. Right-click for apply/pop/delete."
+      >
+        <span style={{ opacity: 0.7, width: 12, textAlign: 'center', flexShrink: 0 }}>✦</span>
+        <span className="truncate" style={{ maxWidth: '38%' }}>{ref_.name}</span>
+        {ref_.stashMessage && (
+          <span
+            className="truncate"
+            style={{ color: 'var(--color-text-muted)', fontSize: 11, marginLeft: 6, flex: 1 }}
+            title={ref_.stashMessage}
+          >
+            {ref_.stashMessage}
+          </span>
+        )}
+      </div>
+      {ctxMenu && (
+        <StashContextMenu
           ref_={ref_}
           x={ctxMenu.x}
           y={ctxMenu.y}

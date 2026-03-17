@@ -3,6 +3,8 @@ import { useRepoStore, GraphNode } from '../../store/repoStore'
 import type { RefInfo } from '../../../../shared/ipc'
 import { CommitContextMenu } from './CommitContextMenu'
 import { MergeRebaseDialog } from '../Modals/MergeRebaseDialog'
+import { BranchContextMenu } from '../Sidebar/BranchContextMenu'
+import { StashContextMenu } from '../Sidebar/StashContextMenu'
 
 const ROW_HEIGHT = 36
 const NODE_RADIUS = 5
@@ -384,6 +386,8 @@ function GraphLabels({ nodes, refs, onDrop }: {
   onDrop: (source: string, target: string) => void
 }) {
   const { checkoutRef } = useRepoStore()
+  const [chipMenu, setChipMenu] = useState<{ ref: RefInfo; x: number; y: number } | null>(null)
+  const [stashMenu, setStashMenu] = useState<{ ref: RefInfo; x: number; y: number } | null>(null)
 
   const nodeByHash = useMemo(() => {
     const m = new Map<string, GraphNode>()
@@ -436,28 +440,61 @@ function GraphLabels({ nodes, refs, onDrop }: {
               flexWrap: 'nowrap',
               alignItems: 'center'
             }}
-          >
+>
             {nodeRefs.map(ref => (
-              <GraphBranchLabel key={ref.name} ref_={ref} color={node.laneColor} onDrop={onDrop} onDoubleClick={checkoutRef} />
+              <GraphBranchLabel
+                key={ref.name}
+                ref_={ref}
+                color={node.laneColor}
+                onDrop={onDrop}
+                onDoubleClick={checkoutRef}
+                onContextMenu={(r, x, y) => {
+                  if (r.type === 'stash') {
+                    setChipMenu(null)
+                    setStashMenu({ ref: r, x, y })
+                  } else {
+                    setStashMenu(null)
+                    setChipMenu({ ref: r, x, y })
+                  }
+                }}
+              />
             ))}
           </div>
         )
       })}
+      {chipMenu && (
+        <BranchContextMenu
+          ref_={chipMenu.ref}
+          x={chipMenu.x}
+          y={chipMenu.y}
+          onClose={() => setChipMenu(null)}
+        />
+      )}
+      {stashMenu && (
+        <StashContextMenu
+          ref_={stashMenu.ref}
+          x={stashMenu.x}
+          y={stashMenu.y}
+          onClose={() => setStashMenu(null)}
+        />
+      )}
     </>
   )
 }
 
-function GraphBranchLabel({ ref_, color, onDrop, onDoubleClick }: {
+function GraphBranchLabel({ ref_, color, onDrop, onDoubleClick, onContextMenu }: {
   ref_: RefInfo
   color: string
   onDrop: (source: string, target: string) => void
   onDoubleClick: (name: string) => void
+  onContextMenu: (ref: RefInfo, x: number, y: number) => void
 }) {
   const [isOver, setIsOver] = useState(false)
   const isHead = ref_.isHead
   const isTag = ref_.type === 'tag'
   const isLocal = ref_.type === 'local'
   const isRemote = ref_.type === 'remote'
+  const isStash = ref_.type === 'stash'
   // Locals: show short name only. Remotes: show full name (e.g. origin/main) to distinguish.
   const label = isLocal ? (ref_.name.split('/').pop() ?? ref_.name) : ref_.name
 
@@ -480,9 +517,14 @@ function GraphBranchLabel({ ref_, color, onDrop, onDoubleClick }: {
       }}
       onDoubleClick={e => {
         e.stopPropagation()
-        onDoubleClick(ref_.name)
+        if (!isStash) onDoubleClick(ref_.name)
       }}
-      title={isLocal ? `${ref_.name} — drag to merge/rebase` : ref_.name}
+      onContextMenu={e => {
+        e.preventDefault()
+        e.stopPropagation()
+        onContextMenu(ref_, e.clientX, e.clientY)
+      }}
+      title={isStash ? `${ref_.name}${ref_.stashMessage ? ` — ${ref_.stashMessage}` : ''}` : isLocal ? `${ref_.name} — drag to merge/rebase` : ref_.name}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -496,12 +538,18 @@ function GraphBranchLabel({ ref_, color, onDrop, onDoubleClick }: {
           ? color
           : isHead
           ? color
+          : isStash
+          ? 'var(--color-bg-surface)'
           : isRemote
           ? 'transparent'
           : 'var(--color-bg-surface)',
-        color: (isHead || isOver) ? '#fff' : color,
-        border: `1px solid ${isRemote && !isOver ? color + '99' : color}`,
-        cursor: isLocal ? 'grab' : 'default',
+        color: (isHead || isOver)
+          ? '#fff'
+          : isStash
+          ? 'var(--color-text-secondary)'
+          : color,
+        border: `1px solid ${isStash ? 'var(--color-border)' : isRemote && !isOver ? color + '99' : color}`,
+        cursor: isLocal ? 'grab' : isStash ? 'pointer' : 'default',
         userSelect: 'none',
         boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
         maxWidth: LABEL_AREA_WIDTH - 16,
@@ -513,7 +561,7 @@ function GraphBranchLabel({ ref_, color, onDrop, onDoubleClick }: {
         transition: 'background 0.12s, color 0.12s'
       }}
     >
-      {isHead ? '✓ ' : isTag ? '⚑ ' : '⎇ '}{label}
+      {isHead ? '✓ ' : isTag ? '⚑ ' : isStash ? '✦ ' : '⎇ '}{label}
     </span>
   )
 }

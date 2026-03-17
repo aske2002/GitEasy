@@ -6,6 +6,7 @@ import { IPC } from '../../shared/ipc'
 import { getGraph } from '../git/log'
 import { getRefs } from '../git/refs'
 import { getStatus, stageFile, unstageFile, stageAll, unstageAll, commitChanges } from '../git/status'
+import { createStash, popStash, applyStash, dropStash } from '../git/stash'
 import { verifyAndAddAccount, listAccounts, removeAccount, getRemoteAuthUrl, listRemoteRepos, buildAuthCloneUrl } from '../git/auth'
 import { getCommitDiff, getFileDiff, getFileContent, getCommitFiles, restoreFile, getWorkingDiff, getStagedDiff } from '../git/diff'
 import { listRemotes, addRemote, removeRemote, renameRemote, setRemoteUrl } from '../git/remotes'
@@ -110,6 +111,22 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
 
   ipcMain.handle(IPC.COMMIT, async (_event, repoPath: string, message: string) => {
     return commitChanges(repoPath, message)
+  })
+
+  ipcMain.handle(IPC.CREATE_STASH, async (_event, repoPath: string, message?: string, includeUntracked?: boolean) => {
+    return createStash(repoPath, message, includeUntracked)
+  })
+
+  ipcMain.handle(IPC.POP_STASH, async (_event, repoPath: string, stashRef: string) => {
+    return popStash(repoPath, stashRef)
+  })
+
+  ipcMain.handle(IPC.APPLY_STASH, async (_event, repoPath: string, stashRef: string) => {
+    return applyStash(repoPath, stashRef)
+  })
+
+  ipcMain.handle(IPC.DROP_STASH, async (_event, repoPath: string, stashRef: string) => {
+    return dropStash(repoPath, stashRef)
   })
 
   // --- Operations ---

@@ -40,6 +40,14 @@ const gitApi = {
     ipcRenderer.invoke(IPC.UNSTAGE_ALL, repoPath),
   commit: (repoPath: string, message: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(IPC.COMMIT, repoPath, message),
+  createStash: (repoPath: string, message?: string, includeUntracked = true): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.CREATE_STASH, repoPath, message, includeUntracked),
+  popStash: (repoPath: string, stashRef: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.POP_STASH, repoPath, stashRef),
+  applyStash: (repoPath: string, stashRef: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.APPLY_STASH, repoPath, stashRef),
+  dropStash: (repoPath: string, stashRef: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.DROP_STASH, repoPath, stashRef),
 
   // Operations
   checkout: (repoPath: string, opts: CheckoutOptions) =>

@@ -36,6 +36,7 @@ export const IPC = {
   FORCE_PUSH: 'git:forcePush',
   CREATE_BRANCH: 'git:createBranch',
   DELETE_BRANCH: 'git:deleteBranch',
+  DELETE_REMOTE_BRANCH: 'git:deleteRemoteBranch',
   RENAME_BRANCH: 'git:renameBranch',
   CHERRY_PICK: 'git:cherryPick',
   CREATE_TAG: 'git:createTag',

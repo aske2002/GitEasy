@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
-  const { checkoutRef, deleteBranch, renameBranch, pushCurrent, refs } = useRepoStore()
+  const { checkoutRef, deleteBranch, deleteRemoteBranch, renameBranch } = useRepoStore()
   const menuRef = useRef<HTMLDivElement>(null)
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState(ref_.name.split('/').pop() ?? ref_.name)
@@ -50,7 +50,17 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
 
   const isHead = ref_.isHead
   const isLocal = ref_.type === 'local'
+  const isRemote = ref_.type === 'remote'
   const displayName = ref_.name.split('/').pop() ?? ref_.name
+
+  // For remote branches: ref_.name is like "origin/feature"
+  // For local branches with upstream: ref_.upstream is like "refs/remotes/origin/feature"
+  const remoteParts = isRemote
+    ? ref_.name.split('/')
+    : ref_.upstream?.replace('refs/remotes/', '').split('/') ?? []
+  const upstreamRemote = remoteParts[0] ?? ''
+  const upstreamBranch = remoteParts.slice(1).join('/')
+  const hasUpstream = !!upstreamRemote && !!upstreamBranch
 
   const handleCheckout = async () => {
     onClose()
@@ -59,7 +69,7 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
 
   const handleDelete = async () => {
     onClose()
-    if (!window.confirm(`Delete branch "${displayName}"?`)) return
+    if (!window.confirm(`Delete local branch "${displayName}"?`)) return
     await deleteBranch(ref_.name, false)
   }
 
@@ -67,6 +77,22 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
     onClose()
     if (!window.confirm(`Force-delete branch "${displayName}"? Unmerged commits will be lost.`)) return
     await deleteBranch(ref_.name, true)
+  }
+
+  const handleDeleteLocalAndRemote = async () => {
+    onClose()
+    if (!window.confirm(`Delete local branch "${displayName}" and remote "${upstreamRemote}/${upstreamBranch}"?`)) return
+    await deleteBranch(ref_.name, true)
+    await deleteRemoteBranch(upstreamRemote, upstreamBranch)
+  }
+
+  const handleDeleteRemoteOnly = async () => {
+    onClose()
+    const label = isRemote
+      ? `Delete remote branch "${ref_.name}"?`
+      : `Delete remote branch "${upstreamRemote}/${upstreamBranch}" (keep local)?`
+    if (!window.confirm(label)) return
+    await deleteRemoteBranch(upstreamRemote, upstreamBranch)
   }
 
   const handleRename = () => {
@@ -120,8 +146,12 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
         {isHead && <span style={{ marginLeft: 6, color: 'var(--color-green)', fontSize: 10 }}>HEAD</span>}
       </div>
 
-      {!isHead && (
+      {!isHead && isLocal && (
+
         <MenuItem onClick={handleCheckout}>Checkout</MenuItem>
+      )}
+      {!isHead && isRemote && (
+        <MenuItem onClick={handleCheckout}>Checkout (track locally)</MenuItem>
       )}
 
       {isLocal && !renaming && (
@@ -174,10 +204,19 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
       {sep}
 
       {isLocal && !isHead && (
-        <MenuItem onClick={handleDelete} danger>Delete Branch</MenuItem>
+        <MenuItem onClick={handleDelete} danger>Delete Local</MenuItem>
       )}
       {isLocal && !isHead && (
-        <MenuItem onClick={handleForceDelete} danger>Force Delete</MenuItem>
+        <MenuItem onClick={handleForceDelete} danger>Force Delete Local</MenuItem>
+      )}
+      {isLocal && !isHead && hasUpstream && (
+        <MenuItem onClick={handleDeleteLocalAndRemote} danger>Delete Local + Remote</MenuItem>
+      )}
+      {isLocal && !isHead && hasUpstream && (
+        <MenuItem onClick={handleDeleteRemoteOnly} danger>Delete Remote Only</MenuItem>
+      )}
+      {isRemote && (
+        <MenuItem onClick={handleDeleteRemoteOnly} danger>Delete Remote Branch</MenuItem>
       )}
     </div>
   )

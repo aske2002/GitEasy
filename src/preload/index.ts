@@ -60,6 +60,8 @@ const gitApi = {
     ipcRenderer.invoke(IPC.CREATE_BRANCH, repoPath, name, from),
   deleteBranch: (repoPath: string, name: string, force = false) =>
     ipcRenderer.invoke(IPC.DELETE_BRANCH, repoPath, name, force),
+  deleteRemoteBranch: (repoPath: string, remote: string, branchName: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.DELETE_REMOTE_BRANCH, repoPath, remote, branchName),
   renameBranch: (repoPath: string, oldName: string, newName: string) =>
     ipcRenderer.invoke(IPC.RENAME_BRANCH, repoPath, oldName, newName),
   cherryPick: (repoPath: string, hash: string) =>

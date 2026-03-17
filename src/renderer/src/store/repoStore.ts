@@ -63,6 +63,7 @@ export interface RepoActions {
   forcePushCurrent: () => Promise<void>
   createBranchFrom: (name: string, from: string) => Promise<void>
   deleteBranch: (name: string, force?: boolean) => Promise<void>
+  deleteRemoteBranch: (remote: string, branchName: string) => Promise<void>
   renameBranch: (oldName: string, newName: string) => Promise<void>
   pushTag: (name: string) => Promise<void>
   deleteTag: (name: string) => Promise<void>
@@ -340,6 +341,16 @@ export const useRepoStore = create<Store>((set, get) => ({
     if (!repoPath) return
     set({ operationInProgress: true, operationError: null })
     const result = await window.git.deleteBranch(repoPath, name, force)
+    set({ operationInProgress: false })
+    if (!result.success) { set({ operationError: result.error }); return }
+    await get().refresh()
+  },
+
+  deleteRemoteBranch: async (remote, branchName) => {
+    const { repoPath } = get()
+    if (!repoPath) return
+    set({ operationInProgress: true, operationError: null })
+    const result = await window.git.deleteRemoteBranch(repoPath, remote, branchName)
     set({ operationInProgress: false })
     if (!result.success) { set({ operationError: result.error }); return }
     await get().refresh()

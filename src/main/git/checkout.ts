@@ -130,6 +130,11 @@ export async function deleteBranch(repoPath: string, name: string, force = false
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }
 
+export async function deleteRemoteBranch(repoPath: string, remote: string, branchName: string): Promise<GitOperationResult> {
+  const result = await runGit(repoPath, ['push', remote, '--delete', branchName])
+  return { success: result.exitCode === 0, error: result.stderr || undefined }
+}
+
 export async function renameBranch(repoPath: string, oldName: string, newName: string): Promise<GitOperationResult> {
   const result = await runGit(repoPath, ['branch', '-m', oldName, newName])
   return { success: result.exitCode === 0, error: result.stderr || undefined }

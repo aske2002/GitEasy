@@ -265,24 +265,42 @@ function RemoteGroup({ name, branches, onDoubleClick }: {
         <span className="ml-1 font-medium">{name}</span>
       </button>
       {open && branches.map(ref => (
-        <div
-          key={ref.name}
-          className="flex items-center gap-2 pl-8 pr-3 py-1.5 cursor-pointer"
-          style={{ color: 'var(--color-text-secondary)' }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          onDoubleClick={() => onDoubleClick(ref.name)}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.6, flexShrink: 0 }}>
-            <line x1="6" y1="3" x2="6" y2="15" />
-            <circle cx="18" cy="6" r="3" />
-            <circle cx="6" cy="18" r="3" />
-            <path d="M18 9a9 9 0 01-9 9" />
-          </svg>
-          <span className="truncate">{ref.name.split('/').slice(1).join('/')}</span>
-        </div>
+        <RemoteBranchRow key={ref.name} ref_={ref} onDoubleClick={onDoubleClick} />
       ))}
     </div>
+  )
+}
+
+function RemoteBranchRow({ ref_, onDoubleClick }: { ref_: RefInfo; onDoubleClick: (name: string) => void }) {
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
+  return (
+    <>
+      <div
+        className="flex items-center gap-2 pl-8 pr-3 py-1.5 cursor-pointer"
+        style={{ color: 'var(--color-text-secondary)' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        onDoubleClick={() => onDoubleClick(ref_.name)}
+        onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }) }}
+        title="Double-click to checkout locally. Right-click for options."
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.6, flexShrink: 0 }}>
+          <line x1="6" y1="3" x2="6" y2="15" />
+          <circle cx="18" cy="6" r="3" />
+          <circle cx="6" cy="18" r="3" />
+          <path d="M18 9a9 9 0 01-9 9" />
+        </svg>
+        <span className="truncate">{ref_.name.split('/').slice(1).join('/')}</span>
+      </div>
+      {ctxMenu && (
+        <BranchContextMenu
+          ref_={ref_}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
+    </>
   )
 }
 

@@ -11,7 +11,7 @@ import { getCommitDiff, getFileDiff, getFileContent, getCommitFiles, restoreFile
 import {
   checkout, reset, merge, rebase,
   fetch, pull, push, forcePush, canFastForward,
-  createBranch, deleteBranch, renameBranch,
+  createBranch, deleteBranch, renameBranch, deleteRemoteBranch,
   cherryPick, createTag, pushTag, deleteTag, cloneRepo
 } from '../git/checkout'
 import { startWatcher } from '../git/watcher'
@@ -171,6 +171,10 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
 
   ipcMain.handle(IPC.DELETE_BRANCH, async (_event, repoPath: string, name: string, force: boolean) => {
     return deleteBranch(repoPath, name, force)
+  })
+
+  ipcMain.handle(IPC.DELETE_REMOTE_BRANCH, async (_event, repoPath: string, remote: string, branchName: string) => {
+    return deleteRemoteBranch(repoPath, remote, branchName)
   })
 
   ipcMain.handle(IPC.RENAME_BRANCH, async (_event, repoPath: string, oldName: string, newName: string) => {

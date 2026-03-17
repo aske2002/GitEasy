@@ -6,13 +6,13 @@ import { IPC } from '../../shared/ipc'
 import { getGraph } from '../git/log'
 import { getRefs } from '../git/refs'
 import { getStatus, stageFile, unstageFile, stageAll, unstageAll, commitChanges } from '../git/status'
-import { verifyAndAddAccount, listAccounts, removeAccount, getRemoteAuthUrl } from '../git/auth'
+import { verifyAndAddAccount, listAccounts, removeAccount, getRemoteAuthUrl, listRemoteRepos, buildAuthCloneUrl } from '../git/auth'
 import { getCommitDiff, getFileDiff, getFileContent, getCommitFiles, restoreFile } from '../git/diff'
 import {
   checkout, reset, merge, rebase,
   fetch, pull, push, forcePush, canFastForward,
   createBranch, deleteBranch, renameBranch,
-  cherryPick, createTag, pushTag, deleteTag
+  cherryPick, createTag, pushTag, deleteTag, cloneRepo
 } from '../git/checkout'
 import { startWatcher } from '../git/watcher'
 
@@ -186,5 +186,31 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
 
   ipcMain.handle(IPC.DELETE_TAG, async (_event, repoPath: string, name: string) => {
     return deleteTag(repoPath, name)
+  })
+
+  ipcMain.handle(IPC.LIST_REMOTE_REPOS, async (_event, host: string) => {
+    return listRemoteRepos(store as any, host)
+  })
+
+  ipcMain.handle(IPC.CLONE_REPO, async (_event, cloneUrl: string, parentDir: string, repoName: string) => {
+    const authUrl = buildAuthCloneUrl(store as any, cloneUrl) ?? cloneUrl
+    const result = await cloneRepo(parentDir, authUrl, repoName)
+    if (result.success && result.clonedPath) {
+      const recent = store.get('recentRepos', [])
+      const updated = [result.clonedPath, ...recent.filter((r: string) => r !== result.clonedPath)].slice(0, 10)
+      store.set('recentRepos', updated)
+      startWatcher(result.clonedPath)
+    }
+    return result
+  })
+
+  ipcMain.handle(IPC.CHOOSE_DIRECTORY, async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    const result = await dialog.showOpenDialog(win!, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Choose folder to clone into'
+    })
+    if (result.canceled || !result.filePaths[0]) return null
+    return result.filePaths[0]
   })
 }

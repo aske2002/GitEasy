@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useRepoStore } from '../../store/repoStore'
 import { AccountsModal } from '../Modals/AccountsModal'
+import { CloneModal } from '../Modals/CloneModal'
 
 declare const __APP_VERSION__: string
 
 export function Toolbar() {
   const { repoName, repoPath, fetchAll, pullCurrent, pushCurrent, forcePushCurrent, pushFailed, refresh, openRepo, operationInProgress } = useRepoStore()
   const [accountsOpen, setAccountsOpen] = useState(false)
+  const [cloneOpen, setCloneOpen] = useState(false)
   const [updateVersion, setUpdateVersion] = useState<string | null>(null)
   const [updateReady, setUpdateReady] = useState(false)
 
@@ -47,6 +49,12 @@ export function Toolbar() {
 
       {/* Action buttons */}
       <div className="flex items-center gap-1 no-drag">
+        <ToolbarBtn
+          icon={<CloneIcon />}
+          label="Clone"
+          onClick={() => setCloneOpen(true)}
+          title="Clone a repository from GitHub or GitLab"
+        />
         <ToolbarBtn
           icon={<FetchIcon />}
           label="Fetch"
@@ -124,6 +132,12 @@ export function Toolbar() {
         v{__APP_VERSION__}
       </span>
       {accountsOpen && <AccountsModal onClose={() => setAccountsOpen(false)} />}
+      {cloneOpen && (
+        <CloneModal
+          onClose={() => setCloneOpen(false)}
+          onCloned={path => openRepo(path)}
+        />
+      )}
     </div>
   )
 }
@@ -194,5 +208,12 @@ const ForceIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M12 19V5M5 12l7-7 7 7" />
     <path d="M5 5h14" />
+  </svg>
+)
+
+const CloneIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="2" y="7" width="13" height="14" rx="2" />
+    <path d="M9 7V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-3" />
   </svg>
 )

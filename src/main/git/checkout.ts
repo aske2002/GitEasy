@@ -155,3 +155,18 @@ export async function deleteTag(repoPath: string, name: string): Promise<GitOper
   const result = await runGit(repoPath, ['tag', '-d', name])
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }
+
+export async function cloneRepo(
+  parentDir: string,
+  authCloneUrl: string,
+  repoName: string
+): Promise<{ success: boolean; clonedPath?: string; error?: string }> {
+  const result = await runGit(parentDir, ['clone', authCloneUrl, repoName])
+  if (result.exitCode !== 0) {
+    // Strip the auth URL from any error message to avoid leaking tokens
+    const safeError = result.stderr.replace(/https?:\/\/[^@]+@/g, 'https://')
+    return { success: false, error: safeError }
+  }
+  const path = await import('path')
+  return { success: true, clonedPath: path.join(parentDir, repoName) }
+}

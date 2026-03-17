@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc'
 import type {
-  CheckoutOptions, MergeOptions, RebaseOptions, ResetMode, AccountInfo
+  CheckoutOptions, MergeOptions, RebaseOptions, ResetMode, AccountInfo, RemoteRepo
 } from '../shared/ipc'
 
 // Expose a typed, safe API to the renderer via window.git
@@ -74,6 +74,12 @@ const gitApi = {
     ipcRenderer.invoke(IPC.AUTH_LIST_ACCOUNTS),
   removeAccount: (host: string, username: string): Promise<void> =>
     ipcRenderer.invoke(IPC.AUTH_REMOVE_ACCOUNT, host, username),
+  listRemoteRepos: (host: string): Promise<RemoteRepo[]> =>
+    ipcRenderer.invoke(IPC.LIST_REMOTE_REPOS, host),
+  cloneRepo: (cloneUrl: string, parentDir: string, repoName: string): Promise<{ success: boolean; clonedPath?: string; error?: string }> =>
+    ipcRenderer.invoke(IPC.CLONE_REPO, cloneUrl, parentDir, repoName),
+  chooseDirectory: (): Promise<string | null> =>
+    ipcRenderer.invoke(IPC.CHOOSE_DIRECTORY),
 
   // Events
   onRepoChanged: (cb: () => void) => {

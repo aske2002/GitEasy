@@ -2,7 +2,7 @@ import { safeStorage } from 'electron'
 import { request as httpsRequest } from 'https'
 import Store from 'electron-store'
 import { runGit } from './runner'
-import type { AccountInfo } from '../../shared/ipc'
+import type { AccountInfo, RemoteRepo } from '../../shared/ipc'
 
 interface StoredAccount extends AccountInfo {
   encryptedToken: string // base64-encoded encrypted bytes
@@ -128,4 +128,75 @@ export async function getRemoteAuthUrl(
   } catch {
     return null
   }
+}
+
+export function buildAuthCloneUrl(
+  store: Store<{ recentRepos: string[]; accounts: StoredAccount[] }>,
+  cloneUrl: string
+): string | null {
+  try {
+    const parsed = new URL(cloneUrl)
+    const token = getTokenForHost(store, parsed.hostname)
+    if (!token) return null
+    parsed.username = 'oauth2'
+    parsed.password = encodeURIComponent(token)
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
+export async function listRemoteRepos(
+  store: Store<{ recentRepos: string[]; accounts: StoredAccount[] }>,
+  host: string
+): Promise<RemoteRepo[]> {
+  const token = getTokenForHost(store, host)
+  if (!token) throw new Error('No token for host: ' + host)
+
+  const results: RemoteRepo[] = []
+
+  if (host === 'github.com') {
+    for (let page = 1; page <= 3; page++) {
+      const data = await httpsGet(
+        `https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator,organization_member`,
+        { Authorization: `Bearer ${token}`, 'User-Agent': 'GitEasy/1.0', Accept: 'application/vnd.github+json' }
+      )
+      const json = JSON.parse(data)
+      if (!Array.isArray(json) || json.length === 0) break
+      for (const r of json) {
+        results.push({
+          name: r.name,
+          fullName: r.full_name,
+          cloneUrl: r.clone_url,
+          description: r.description ?? null,
+          isPrivate: r.private,
+          updatedAt: r.updated_at
+        })
+      }
+      if (json.length < 100) break
+    }
+  } else {
+    // GitLab (cloud or self-hosted)
+    for (let page = 1; page <= 3; page++) {
+      const data = await httpsGet(
+        `https://${host}/api/v4/projects?membership=true&per_page=100&page=${page}&order_by=last_activity_at&simple=true`,
+        { 'PRIVATE-TOKEN': token, 'User-Agent': 'GitEasy/1.0' }
+      )
+      const json = JSON.parse(data)
+      if (!Array.isArray(json) || json.length === 0) break
+      for (const r of json) {
+        results.push({
+          name: r.path,
+          fullName: r.path_with_namespace,
+          cloneUrl: r.http_url_to_repo,
+          description: r.description ?? null,
+          isPrivate: r.visibility !== 'public',
+          updatedAt: r.last_activity_at
+        })
+      }
+      if (json.length < 100) break
+    }
+  }
+
+  return results
 }

@@ -51,6 +51,11 @@ export const IPC = {
   AUTH_ADD_ACCOUNT: 'auth:addAccount',
   AUTH_LIST_ACCOUNTS: 'auth:listAccounts',
   AUTH_REMOVE_ACCOUNT: 'auth:removeAccount',
+  LIST_REMOTE_REPOS: 'auth:listRemoteRepos',
+
+  // Clone
+  CLONE_REPO: 'git:cloneRepo',
+  CHOOSE_DIRECTORY: 'fs:chooseDirectory',
 
   // Events (main → renderer)
   REPO_CHANGED: 'repo:changed',
@@ -148,4 +153,13 @@ export interface AccountInfo {
   host: string
   username: string
   avatarUrl?: string
+}
+
+export interface RemoteRepo {
+  name: string
+  fullName: string
+  cloneUrl: string
+  description: string | null
+  isPrivate: boolean
+  updatedAt: string
 }

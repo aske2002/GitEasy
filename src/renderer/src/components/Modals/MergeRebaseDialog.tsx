@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useRepoStore } from '../../store/repoStore'
 
-interface DragDropState {
-  sourceBranch: string | null
-}
-
 export function MergeRebaseDialog({
   source,
   target,
+  allowMerge = true,
   onConfirm,
   onCancel
 }: {
   source: string
   target: string
+  allowMerge?: boolean
   onConfirm: (op: 'merge' | 'rebase' | 'ff-only') => void
   onCancel: () => void
 }) {
@@ -20,9 +18,9 @@ export function MergeRebaseDialog({
   const [ffPossible, setFfPossible] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (!repoPath) return
+    if (!repoPath || !allowMerge) return
     window.git.canFfOnly(repoPath, source, target).then(setFfPossible).catch(() => setFfPossible(false))
-  }, [repoPath, source, target])
+  }, [repoPath, source, target, allowMerge])
 
   return (
     <div style={{
@@ -54,25 +52,29 @@ export function MergeRebaseDialog({
             Target: <Tag label={target} color="var(--color-green)" />
           </div>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>
-            Choose how to integrate <strong>{source}</strong> into <strong>{target}</strong>:
+            {allowMerge
+              ? <>Choose how to integrate <strong>{source}</strong> into <strong>{target}</strong>:</>
+              : <>Rebase <strong>{source}</strong> onto <strong>{target}</strong>:</>}
           </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-          {ffPossible === true && (
+          {allowMerge && ffPossible === true && (
             <OptionBtn
               title="Fast Forward"
               desc={`Move ${target} pointer forward to ${source} — no merge commit`}
               onClick={() => onConfirm('ff-only')}
             />
           )}
+          {allowMerge && (
+            <OptionBtn
+              title="Merge"
+              desc={`Create a merge commit combining ${source} into ${target}`}
+              onClick={() => onConfirm('merge')}
+            />
+          )}
           <OptionBtn
-            title="Merge"
-            desc={`Create a merge commit combining ${source} into ${target}`}
-            onClick={() => onConfirm('merge')}
-          />
-          <OptionBtn
-            title="Rebase"
+            title={allowMerge ? 'Rebase' : 'Rebase Onto Remote'}
             desc={`Rebase ${source} onto ${target} (rewrites history)`}
             onClick={() => onConfirm('rebase')}
             warn

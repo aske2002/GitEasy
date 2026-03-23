@@ -15,6 +15,7 @@ type Section = 'local' | 'remote' | 'stashes' | 'tags'
 interface PendingOp {
   source: string
   target: string
+  targetType: 'local' | 'remote'
 }
 
 export function Sidebar() {
@@ -44,11 +45,19 @@ export function Sidebar() {
     const source = e.active.id as string
     const target = e.over?.id as string | undefined
     if (!target || source === target) return
-    setPendingOp({ source, target })
+    const targetRef = refs.find(r => r.name === target)
+    if (!targetRef || (targetRef.type !== 'local' && targetRef.type !== 'remote')) return
+    setPendingOp({ source, target, targetType: targetRef.type })
   }
 
   const handleConfirmOp = async (op: 'merge' | 'rebase' | 'ff-only') => {
     if (!pendingOp) return
+    if (pendingOp.targetType === 'remote') {
+      await checkoutRef(pendingOp.source)
+      await rebaseBranch(pendingOp.source, pendingOp.target)
+      setPendingOp(null)
+      return
+    }
     if (op === 'ff-only') {
       await checkoutRef(pendingOp.target)
       await mergeBranch(pendingOp.source, 'ff-only')
@@ -198,6 +207,7 @@ export function Sidebar() {
         <MergeRebaseDialog
           source={pendingOp.source}
           target={pendingOp.target}
+          allowMerge={pendingOp.targetType === 'local'}
           onConfirm={handleConfirmOp}
           onCancel={() => setPendingOp(null)}
         />
@@ -326,17 +336,23 @@ function RemoteGroup({ name, branches, onDoubleClick }: {
 }
 
 function RemoteBranchRow({ ref_, onDoubleClick }: { ref_: RefInfo; onDoubleClick: (name: string) => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: ref_.name })
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
   return (
     <>
       <div
+        ref={setNodeRef}
         className="flex items-center gap-2 pl-8 pr-3 py-1.5 cursor-pointer"
-        style={{ color: 'var(--color-text-secondary)' }}
+        style={{
+          color: 'var(--color-text-secondary)',
+          background: isOver ? 'rgba(124,140,248,0.15)' : 'transparent',
+          outline: isOver ? '1px dashed var(--color-accent)' : 'none'
+        }}
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        onMouseLeave={e => (e.currentTarget.style.background = isOver ? 'rgba(124,140,248,0.15)' : 'transparent')}
         onDoubleClick={() => onDoubleClick(ref_.name)}
         onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }) }}
-        title="Double-click to checkout locally. Right-click for options."
+        title="Double-click to checkout locally. Drag local branches here to rebase onto this remote branch."
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.6, flexShrink: 0 }}>
           <line x1="6" y1="3" x2="6" y2="15" />

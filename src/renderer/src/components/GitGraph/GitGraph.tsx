@@ -30,7 +30,13 @@ export function GitGraph() {
   const rafRef = useRef(0)
   const [containerSize, setContainerSize] = useState({ w: 800, h: 600 })
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hash: string } | null>(null)
-  const [pendingOp, setPendingOp] = useState<{ source: string; target: string } | null>(null)
+  const [pendingOp, setPendingOp] = useState<{ source: string; target: string; targetType: 'local' | 'remote' } | null>(null)
+
+  const openPendingOp = useCallback((source: string, target: string) => {
+    const targetRef = refs.find(r => r.name === target)
+    if (!targetRef || (targetRef.type !== 'local' && targetRef.type !== 'remote')) return
+    setPendingOp({ source, target, targetType: targetRef.type })
+  }, [refs])
 
   const refsByHash = useRef(new Map<string, RefInfo[]>())
   useEffect(() => {
@@ -214,7 +220,7 @@ export function GitGraph() {
             <GraphLabels
               nodes={graphNodes}
               refs={refs}
-              onDrop={(source, target) => setPendingOp({ source, target })}
+              onDrop={openPendingOp}
             />
             <VirtualRows
               nodes={graphNodes}
@@ -225,7 +231,7 @@ export function GitGraph() {
               graphWidth={graphWidth}
               onRowClick={handleRowClick}
               onContextMenu={handleContextMenu}
-              onDrop={(source, target) => setPendingOp({ source, target })}
+              onDrop={openPendingOp}
             />
           </div>
         </div>
@@ -244,8 +250,15 @@ export function GitGraph() {
         <MergeRebaseDialog
           source={pendingOp.source}
           target={pendingOp.target}
+          allowMerge={pendingOp.targetType === 'local'}
           onConfirm={async op => {
             if (!pendingOp) return
+            if (pendingOp.targetType === 'remote') {
+              await checkoutRef(pendingOp.source)
+              await rebaseBranch(pendingOp.source, pendingOp.target)
+              setPendingOp(null)
+              return
+            }
             if (op === 'ff-only') {
               await checkoutRef(pendingOp.target)
               await mergeBranch(pendingOp.source, 'ff-only')
@@ -307,8 +320,8 @@ function VirtualRows({
         const nodeRefs = refsByHash.get(node.hash) ?? []
         const isSelected = node.hash === selectedHash
         const isDragOver = node.hash === dragOverHash
-        // only show droppable highlight if node has a LOCAL branch ref
-        const hasLocalBranch = nodeRefs.some(r => r.type === 'local')
+        // only show droppable highlight if node has a LOCAL or REMOTE branch ref
+        const hasBranchTarget = nodeRefs.some(r => r.type === 'local' || r.type === 'remote')
 
         return (
           <div
@@ -325,10 +338,10 @@ function VirtualRows({
               paddingLeft: 8,
               paddingRight: 12,
               cursor: 'pointer',
-              background: isDragOver && hasLocalBranch
+              background: isDragOver && hasBranchTarget
                 ? 'rgba(124,140,248,0.15)'
                 : isSelected ? 'rgba(44,49,80,0.6)' : 'transparent',
-              outline: isDragOver && hasLocalBranch ? '1px dashed var(--color-accent)' : 'none',
+              outline: isDragOver && hasBranchTarget ? '1px dashed var(--color-accent)' : 'none',
               zIndex: 2
             }}
             onClick={() => onRowClick(node.hash)}
@@ -345,7 +358,7 @@ function VirtualRows({
               e.preventDefault()
               setDragOverHash(null)
               const sourceBranch = e.dataTransfer.getData('branch')
-              const targetRef = nodeRefs.find(r => r.type === 'local')
+              const targetRef = nodeRefs.find(r => r.type === 'local') ?? nodeRefs.find(r => r.type === 'remote')
               if (sourceBranch && targetRef && sourceBranch !== targetRef.name) {
                 onDrop(sourceBranch, targetRef.name)
               }
@@ -513,7 +526,7 @@ function GraphBranchLabel({ ref_, color, onDrop, onDoubleClick, onContextMenu }:
         e.stopPropagation()
         setIsOver(false)
         const source = e.dataTransfer.getData('branch')
-        if (source && isLocal && source !== ref_.name) onDrop(source, ref_.name)
+        if (source && (isLocal || isRemote) && source !== ref_.name) onDrop(source, ref_.name)
       }}
       onDoubleClick={e => {
         e.stopPropagation()

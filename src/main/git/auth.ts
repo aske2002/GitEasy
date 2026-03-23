@@ -38,14 +38,15 @@ function httpsGet(url: string, headers: Record<string, string>): Promise<string>
 /** Verify a token against the provider API, store it encrypted, and return public info. */
 export async function verifyAndAddAccount(
   store: Store<{ recentRepos: string[]; accounts: StoredAccount[] }>,
-  provider: 'github' | 'gitlab' | 'custom',
+  provider: 'github' | 'gitlab' | 'bitbucket' | 'custom',
   host: string,
   token: string
 ): Promise<AccountInfo> {
   let username: string
   let avatarUrl: string | undefined
+  let storedToken = token.trim()
 
-  if (host === 'github.com') {
+  if (provider === 'github') {
     const data = await httpsGet('https://api.github.com/user', {
       Authorization: `Bearer ${token}`,
       'User-Agent': 'GitEasy/1.0',
@@ -55,6 +56,37 @@ export async function verifyAndAddAccount(
     if (json.message) throw new Error(`GitHub: ${json.message}`)
     username = json.login
     avatarUrl = json.avatar_url
+  } else if (provider === 'bitbucket') {
+    const raw = token.trim()
+    const splitIdx = raw.indexOf(':')
+    const providedUser = splitIdx > 0 ? raw.slice(0, splitIdx).trim() : ''
+    const bitbucketToken = splitIdx > 0 ? raw.slice(splitIdx + 1).trim() : raw
+    storedToken = bitbucketToken
+
+    const bearerData = await httpsGet('https://api.bitbucket.org/2.0/user', {
+      Authorization: `Bearer ${bitbucketToken}`,
+      'User-Agent': 'GitEasy/1.0',
+      Accept: 'application/json'
+    })
+
+    let json = JSON.parse(bearerData)
+    if (json.type === 'error' || json.error || json.message) {
+      if (!providedUser) {
+        throw new Error('Bitbucket: invalid token. For app passwords, use "username:app_password" format.')
+      }
+      const basicData = await httpsGet('https://api.bitbucket.org/2.0/user', {
+        Authorization: `Basic ${Buffer.from(`${providedUser}:${bitbucketToken}`).toString('base64')}`,
+        'User-Agent': 'GitEasy/1.0',
+        Accept: 'application/json'
+      })
+      json = JSON.parse(basicData)
+      if (json.type === 'error' || json.error || json.message) {
+        throw new Error(`Bitbucket: ${json.error?.message ?? json.message ?? 'authentication failed'}`)
+      }
+    }
+    username = json.username ?? json.nickname ?? json.display_name ?? json.account_id
+    avatarUrl = json.links?.avatar?.href
+    if (!username) throw new Error('Bitbucket: could not resolve account username')
   } else {
     // GitLab (cloud or self-hosted)
     const data = await httpsGet(`https://${host}/api/v4/user`, {
@@ -69,7 +101,7 @@ export async function verifyAndAddAccount(
 
   const accounts: StoredAccount[] = store.get('accounts', [])
   const idx = accounts.findIndex(a => a.host === host && a.username === username)
-  const entry: StoredAccount = { provider, host, username, avatarUrl, encryptedToken: encryptToken(token) }
+  const entry: StoredAccount = { provider, host, username, avatarUrl, encryptedToken: encryptToken(storedToken) }
   if (idx >= 0) accounts[idx] = entry
   else accounts.push(entry)
   store.set('accounts', accounts)
@@ -93,14 +125,12 @@ export function removeAccount(
   store.set('accounts', accounts.filter(a => !(a.host === host && a.username === username)))
 }
 
-function getTokenForHost(
+function getAccountForHost(
   store: Store<{ recentRepos: string[]; accounts: StoredAccount[] }>,
   host: string
-): string | null {
+): StoredAccount | null {
   const accounts: StoredAccount[] = store.get('accounts', [])
-  const account = accounts.find(a => a.host === host)
-  if (!account) return null
-  return decryptToken(account.encryptedToken)
+  return accounts.find(a => a.host === host) ?? null
 }
 
 /**
@@ -120,9 +150,10 @@ export async function getRemoteAuthUrl(
 
   try {
     const parsed = new URL(url)
-    const token = getTokenForHost(store, parsed.hostname)
-    if (!token) return null
-    parsed.username = 'oauth2'
+    const account = getAccountForHost(store, parsed.hostname)
+    if (!account) return null
+    const token = decryptToken(account.encryptedToken)
+    parsed.username = account.provider === 'bitbucket' ? account.username : 'oauth2'
     parsed.password = encodeURIComponent(token)
     return parsed.toString()
   } catch {
@@ -136,9 +167,10 @@ export function buildAuthCloneUrl(
 ): string | null {
   try {
     const parsed = new URL(cloneUrl)
-    const token = getTokenForHost(store, parsed.hostname)
-    if (!token) return null
-    parsed.username = 'oauth2'
+    const account = getAccountForHost(store, parsed.hostname)
+    if (!account) return null
+    const token = decryptToken(account.encryptedToken)
+    parsed.username = account.provider === 'bitbucket' ? account.username : 'oauth2'
     parsed.password = encodeURIComponent(token)
     return parsed.toString()
   } catch {
@@ -150,12 +182,13 @@ export async function listRemoteRepos(
   store: Store<{ recentRepos: string[]; accounts: StoredAccount[] }>,
   host: string
 ): Promise<RemoteRepo[]> {
-  const token = getTokenForHost(store, host)
-  if (!token) throw new Error('No token for host: ' + host)
+  const account = getAccountForHost(store, host)
+  if (!account) throw new Error('No account for host: ' + host)
+  const token = decryptToken(account.encryptedToken)
 
   const results: RemoteRepo[] = []
 
-  if (host === 'github.com') {
+  if (account.provider === 'github') {
     for (let page = 1; page <= 3; page++) {
       const data = await httpsGet(
         `https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator,organization_member`,
@@ -174,6 +207,51 @@ export async function listRemoteRepos(
         })
       }
       if (json.length < 100) break
+    }
+  } else if (account.provider === 'bitbucket') {
+    const fetchBitbucketPage = async (url: string) => {
+      const bearerData = await httpsGet(url, {
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'GitEasy/1.0',
+        Accept: 'application/json'
+      })
+      let json = JSON.parse(bearerData)
+      if (!(json.type === 'error' || json.error)) return json
+
+      const basicData = await httpsGet(url, {
+        Authorization: `Basic ${Buffer.from(`${account.username}:${token}`).toString('base64')}`,
+        'User-Agent': 'GitEasy/1.0',
+        Accept: 'application/json'
+      })
+      json = JSON.parse(basicData)
+      if (json.type === 'error' || json.error) {
+        throw new Error(`Bitbucket: ${json.error?.message ?? 'Failed to list repositories'}`)
+      }
+      return json
+    }
+
+    let next: string | null = 'https://api.bitbucket.org/2.0/repositories?role=member&pagelen=100&sort=-updated_on'
+    for (let page = 0; page < 5 && next; page++) {
+      const json = await fetchBitbucketPage(next)
+
+      const values = Array.isArray(json.values) ? json.values : []
+      for (const r of values) {
+        const clone = Array.isArray(r.links?.clone)
+          ? r.links.clone.find((c: any) => c.name === 'https')?.href
+          : null
+        if (!clone) continue
+        results.push({
+          name: r.slug ?? r.name,
+          fullName: r.full_name ?? r.name,
+          cloneUrl: clone,
+          description: r.description ?? null,
+          isPrivate: !!r.is_private,
+          updatedAt: r.updated_on ?? new Date().toISOString()
+        })
+      }
+
+      next = typeof json.next === 'string' ? json.next : null
+      if (values.length === 0) break
     }
   } else {
     // GitLab (cloud or self-hosted)

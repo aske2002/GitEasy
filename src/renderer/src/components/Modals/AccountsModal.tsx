@@ -5,7 +5,7 @@ interface Props {
   onClose: () => void
 }
 
-type Provider = 'github' | 'gitlab' | 'custom'
+type Provider = 'github' | 'gitlab' | 'bitbucket' | 'custom'
 
 const PROVIDERS: { id: Provider; label: string; defaultHost: string; tokenUrl: string; color: string }[] = [
   {
@@ -21,6 +21,13 @@ const PROVIDERS: { id: Provider; label: string; defaultHost: string; tokenUrl: s
     defaultHost: 'gitlab.com',
     tokenUrl: 'https://gitlab.com/-/user_settings/personal_access_tokens/new?name=GitEasy&scopes=read_user,write_repository',
     color: '#fc6d26'
+  },
+  {
+    id: 'bitbucket',
+    label: 'Bitbucket',
+    defaultHost: 'bitbucket.org',
+    tokenUrl: 'https://bitbucket.org/account/settings/app-passwords/',
+    color: '#2684ff'
   },
   {
     id: 'custom',
@@ -199,10 +206,15 @@ export function AccountsModal({ onClose }: Props) {
                   value={token}
                   onChange={e => setToken(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleConnect() }}
-                  placeholder={provider === 'github' ? 'ghp_...' : 'glpat-...'}
+                  placeholder={provider === 'github' ? 'ghp_...' : provider === 'bitbucket' ? 'username:app_password or token' : 'glpat-...'}
                   style={inputStyle}
                   autoFocus
                 />
+                {provider === 'bitbucket' && (
+                  <div style={{ marginTop: 4, fontSize: 11, color: 'var(--color-text-muted)' }}>
+                    For app passwords, enter: <span style={{ color: 'var(--color-text-secondary)' }}>username:app_password</span>
+                  </div>
+                )}
               </div>
 
               {error && (
@@ -251,8 +263,16 @@ export function AccountsModal({ onClose }: Props) {
 }
 
 function AccountRow({ account, onRemove }: { account: AccountInfo; onRemove: () => void }) {
-  const providerLabel = account.host === 'github.com' ? 'GitHub' : 'GitLab'
-  const providerColor = account.host === 'github.com' ? '#e6edf3' : '#fc6d26'
+  const providerLabel = account.provider === 'github'
+    ? 'GitHub'
+    : account.provider === 'bitbucket'
+    ? 'Bitbucket'
+    : 'GitLab'
+  const providerColor = account.provider === 'github'
+    ? '#e6edf3'
+    : account.provider === 'bitbucket'
+    ? '#2684ff'
+    : '#fc6d26'
 
   return (
     <div style={{

@@ -102,7 +102,7 @@ export function CloneModal({ onClose, onCloned }: Props) {
         {accounts.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
             No accounts connected.<br />
-            <span style={{ fontSize: 12 }}>Add a GitHub or GitLab account in Accounts settings first.</span>
+            <span style={{ fontSize: 12 }}>Add a GitHub, GitLab, or Bitbucket account in Accounts settings first.</span>
           </div>
         ) : (
           <>
@@ -113,7 +113,7 @@ export function CloneModal({ onClose, onCloned }: Props) {
             }}>
               {accounts.map(acc => (
                 <button
-                  key={acc.host}
+                  key={`${acc.host}:${acc.username}`}
                   onClick={() => setActiveHost(acc.host)}
                   style={{
                     padding: '8px 14px', fontSize: 12, fontWeight: 500, border: 'none',
@@ -123,7 +123,7 @@ export function CloneModal({ onClose, onCloned }: Props) {
                     marginBottom: -1
                   }}
                 >
-                  {acc.host === 'github.com' ? '⌥ GitHub' : acc.host === 'gitlab.com' ? '⌥ GitLab' : acc.host} · {acc.username}
+                  {acc.provider === 'github' ? 'GitHub' : acc.provider === 'bitbucket' ? 'Bitbucket' : acc.provider === 'custom' ? 'GitLab' : 'GitLab'} · {acc.username}
                 </button>
               ))}
             </div>

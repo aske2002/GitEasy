@@ -170,7 +170,7 @@ export interface GitOperationResult {
 }
 
 export interface AccountInfo {
-  provider: 'github' | 'gitlab' | 'custom'
+  provider: 'github' | 'gitlab' | 'bitbucket' | 'custom'
   host: string
   username: string
   avatarUrl?: string

@@ -131,7 +131,7 @@ export function Toolbar() {
           icon={<CloneIcon />}
           label="Clone"
           onClick={() => setCloneOpen(true)}
-          title="Clone a repository from GitHub or GitLab"
+          title="Clone a repository from GitHub, GitLab, or Bitbucket"
         />
         <ToolbarBtn
           icon={<FetchIcon />}
@@ -184,7 +184,7 @@ export function Toolbar() {
           icon={<AccountIcon />}
           label="Accounts"
           onClick={() => setAccountsOpen(true)}
-          title="GitHub / GitLab accounts"
+          title="GitHub / GitLab / Bitbucket accounts"
         />
       </div>
 

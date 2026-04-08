@@ -12,7 +12,9 @@ export function Toolbar() {
   const [updateVersion, setUpdateVersion] = useState<string | null>(null)
   const [updateReady, setUpdateReady] = useState(false)
   const [repoPicker, setRepoPicker] = useState(false)
+  const [pullMenu, setPullMenu] = useState(false)
   const repoPickerRef = useRef<HTMLDivElement>(null)
+  const pullMenuRef = useRef<HTMLDivElement>(null)
 
   useState(() => {
     const offAvailable = window.git.onUpdateAvailable(v => setUpdateVersion(v))
@@ -32,6 +34,15 @@ export function Toolbar() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [repoPicker])
+
+  useEffect(() => {
+    if (!pullMenu) return
+    const handler = (e: MouseEvent) => {
+      if (!pullMenuRef.current?.contains(e.target as Node)) setPullMenu(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [pullMenu])
 
   const hasChanges = status.some(f => f.staged || f.unstaged || f.untracked)
 
@@ -140,13 +151,61 @@ export function Toolbar() {
           disabled={operationInProgress}
           title="Fetch all remotes"
         />
-        <ToolbarBtn
-          icon={<PullIcon />}
-          label="Pull"
-          onClick={pullCurrent}
-          disabled={operationInProgress}
-          title="Pull current branch"
-        />
+        <div className="relative" ref={pullMenuRef}>
+          <div className="flex items-center">
+            <ToolbarBtn
+              icon={<PullIcon />}
+              label="Pull"
+              onClick={() => pullCurrent(false)}
+              disabled={operationInProgress}
+              title="Pull current branch"
+            />
+            <button
+              onClick={() => setPullMenu(v => !v)}
+              disabled={operationInProgress}
+              title="Pull options"
+              className="px-1.5 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ color: 'var(--color-text-secondary)', background: 'transparent' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+
+          {pullMenu && (
+            <div
+              className="absolute right-0 top-full mt-1 rounded-md border z-50"
+              style={{
+                minWidth: 170,
+                background: 'var(--color-bg-panel)',
+                borderColor: 'var(--color-border)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.25)'
+              }}
+            >
+              <button
+                onClick={() => { setPullMenu(false); pullCurrent(false) }}
+                className="w-full px-3 py-2 text-left text-xs"
+                style={{ border: 'none', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                Pull
+              </button>
+              <button
+                onClick={() => { setPullMenu(false); pullCurrent(true) }}
+                className="w-full px-3 py-2 text-left text-xs"
+                style={{ border: 'none', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                Pull (Rebase)
+              </button>
+            </div>
+          )}
+        </div>
         <ToolbarBtn
           icon={<StashIcon />}
           label="Stash"

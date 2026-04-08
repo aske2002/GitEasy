@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc'
 import type {
-  CheckoutOptions, MergeOptions, RebaseOptions, ResetMode, AccountInfo, RemoteRepo
+  CheckoutOptions, MergeOptions, RebaseOptions, ResetMode, AccountInfo, RemoteRepo, ConflictContent
 } from '../shared/ipc'
 
 // Expose a typed, safe API to the renderer via window.git
@@ -49,6 +49,12 @@ const gitApi = {
   dropStash: (repoPath: string, stashRef: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(IPC.DROP_STASH, repoPath, stashRef),
 
+  // Merge conflicts
+  getConflictContent: (repoPath: string, filePath: string): Promise<ConflictContent> =>
+    ipcRenderer.invoke(IPC.GET_CONFLICT_CONTENT, repoPath, filePath),
+  resolveConflict: (repoPath: string, filePath: string, content: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.RESOLVE_CONFLICT, repoPath, filePath, content),
+
   // Operations
   checkout: (repoPath: string, opts: CheckoutOptions) =>
     ipcRenderer.invoke(IPC.CHECKOUT, repoPath, opts),
@@ -61,7 +67,7 @@ const gitApi = {
   rebase: (repoPath: string, currentBranch: string, opts: RebaseOptions) =>
     ipcRenderer.invoke(IPC.REBASE, repoPath, currentBranch, opts),
   fetch: (repoPath: string) => ipcRenderer.invoke(IPC.FETCH, repoPath),
-  pull: (repoPath: string) => ipcRenderer.invoke(IPC.PULL, repoPath),
+  pull: (repoPath: string, rebase = false) => ipcRenderer.invoke(IPC.PULL, repoPath, rebase),
   push: (repoPath: string) => ipcRenderer.invoke(IPC.PUSH, repoPath),
   forcePush: (repoPath: string) => ipcRenderer.invoke(IPC.FORCE_PUSH, repoPath),
   createBranch: (repoPath: string, name: string, from: string) =>

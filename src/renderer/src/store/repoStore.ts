@@ -58,7 +58,7 @@ export interface RepoActions {
   mergeBranch: (source: string, strategy?: 'merge' | 'squash' | 'ff-only') => Promise<void>
   rebaseBranch: (source: string, onto: string) => Promise<void>
   fetchAll: () => Promise<void>
-  pullCurrent: () => Promise<void>
+  pullCurrent: (rebase?: boolean) => Promise<void>
   pushCurrent: () => Promise<void>
   forcePushCurrent: () => Promise<void>
   createBranchFrom: (name: string, from: string) => Promise<void>
@@ -299,11 +299,11 @@ export const useRepoStore = create<Store>((set, get) => ({
     await get().refresh()
   },
 
-  pullCurrent: async () => {
+  pullCurrent: async (rebase = false) => {
     const { repoPath } = get()
     if (!repoPath) return
     set({ operationInProgress: true, operationError: null })
-    const result = await window.git.pull(repoPath)
+    const result = await window.git.pull(repoPath, rebase)
     set({ operationInProgress: false })
     if (!result.success) { set({ operationError: result.error }); return }
     await get().refresh()

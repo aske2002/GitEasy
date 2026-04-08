@@ -58,7 +58,7 @@ export async function merge(repoPath: string, opts: MergeOptions): Promise<GitOp
   return { success: true }
 }
 
-export async function rebase(repoPath: string, currentBranch: string, opts: RebaseOptions): Promise<GitOperationResult> {
+export async function rebase(repoPath: string, _currentBranch: string, opts: RebaseOptions): Promise<GitOperationResult> {
   const result = await runGit(repoPath, ['rebase', opts.onto])
   if (result.exitCode !== 0) {
     const conflictsResult = await runGit(repoPath, ['diff', '--name-only', '--diff-filter=U'])
@@ -78,17 +78,24 @@ export async function fetch(repoPath: string, authUrl?: string): Promise<GitOper
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }
 
-export async function pull(repoPath: string, authUrl?: string): Promise<GitOperationResult> {
+export async function pull(repoPath: string, authUrl?: string, rebase = false): Promise<GitOperationResult> {
   if (authUrl) {
     // Get current branch to know what to merge after fetch
     const branchRes = await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])
     const branch = branchRes.stdout.trim()
     const fetchRes = await runGit(repoPath, ['fetch', authUrl, branch])
     if (fetchRes.exitCode !== 0) return { success: false, error: fetchRes.stderr }
+    if (rebase) {
+      const rebaseRes = await runGit(repoPath, ['rebase', 'FETCH_HEAD'])
+      if (rebaseRes.exitCode !== 0) {
+        await runGit(repoPath, ['rebase', '--abort'])
+      }
+      return { success: rebaseRes.exitCode === 0, error: rebaseRes.stderr || undefined }
+    }
     const mergeRes = await runGit(repoPath, ['merge', 'FETCH_HEAD', '--ff-only'])
     return { success: mergeRes.exitCode === 0, error: mergeRes.stderr || undefined }
   }
-  const result = await runGit(repoPath, ['pull'])
+  const result = await runGit(repoPath, rebase ? ['pull', '--rebase'] : ['pull'])
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }
 

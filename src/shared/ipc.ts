@@ -67,6 +67,10 @@ export const IPC = {
   RENAME_REMOTE: 'git:renameRemote',
   SET_REMOTE_URL: 'git:setRemoteUrl',
 
+  // Merge conflicts
+  GET_CONFLICT_CONTENT: 'git:getConflictContent',
+  RESOLVE_CONFLICT: 'git:resolveConflict',
+
   // Clone
   CLONE_REPO: 'git:cloneRepo',
   CHOOSE_DIRECTORY: 'fs:chooseDirectory',
@@ -183,4 +187,24 @@ export interface RemoteRepo {
   description: string | null
   isPrivate: boolean
   updatedAt: string
+}
+
+export interface ConflictSegmentNormal {
+  type: 'normal'
+  lines: string[]
+}
+
+export interface ConflictSegmentConflict {
+  type: 'conflict'
+  index: number
+  oursLines: string[]
+  theirsLines: string[]
+  theirLabel: string
+}
+
+export type ConflictSegment = ConflictSegmentNormal | ConflictSegmentConflict
+
+export interface ConflictContent {
+  filePath: string
+  segments: ConflictSegment[]
 }

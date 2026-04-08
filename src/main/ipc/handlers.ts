@@ -7,6 +7,7 @@ import { getGraph } from '../git/log'
 import { getRefs } from '../git/refs'
 import { getStatus, stageFile, unstageFile, stageAll, unstageAll, commitChanges } from '../git/status'
 import { createStash, popStash, applyStash, dropStash } from '../git/stash'
+import { getConflictContent, resolveConflict } from '../git/conflict'
 import { verifyAndAddAccount, listAccounts, removeAccount, getRemoteAuthUrl, listRemoteRepos, buildAuthCloneUrl } from '../git/auth'
 import { getCommitDiff, getFileDiff, getFileContent, getCommitFiles, restoreFile, getWorkingDiff, getStagedDiff } from '../git/diff'
 import { listRemotes, addRemote, removeRemote, renameRemote, setRemoteUrl } from '../git/remotes'
@@ -129,6 +130,14 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
     return dropStash(repoPath, stashRef)
   })
 
+  ipcMain.handle(IPC.GET_CONFLICT_CONTENT, async (_event, repoPath: string, filePath: string) => {
+    return getConflictContent(repoPath, filePath)
+  })
+
+  ipcMain.handle(IPC.RESOLVE_CONFLICT, async (_event, repoPath: string, filePath: string, content: string) => {
+    return resolveConflict(repoPath, filePath, content)
+  })
+
   // --- Operations ---
 
   ipcMain.handle(IPC.CHECKOUT, async (_event, repoPath: string, opts) => {
@@ -156,9 +165,9 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
     return fetch(repoPath, authUrl ?? undefined)
   })
 
-  ipcMain.handle(IPC.PULL, async (_event, repoPath: string) => {
+  ipcMain.handle(IPC.PULL, async (_event, repoPath: string, rebase?: boolean) => {
     const authUrl = await getRemoteAuthUrl(repoPath, store as any)
-    return pull(repoPath, authUrl ?? undefined)
+    return pull(repoPath, authUrl ?? undefined, !!rebase)
   })
 
   ipcMain.handle(IPC.PUSH, async (_event, repoPath: string) => {

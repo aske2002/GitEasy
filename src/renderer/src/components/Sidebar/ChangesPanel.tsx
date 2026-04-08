@@ -2,15 +2,20 @@ import { useState } from 'react'
 import { useRepoStore } from '../../store/repoStore'
 import type { DiffFile, StatusFile } from '../../../../shared/ipc'
 import { DiffViewer } from '../DiffViewer/DiffViewer'
+import { MergeConflictModal } from '../Modals/MergeConflictModal'
+
+const CONFLICT_CODES = new Set(['UU', 'AA', 'DD', 'AU', 'UA', 'DU', 'UD'])
+const isConflict = (f: StatusFile) => CONFLICT_CODES.has(f.statusCode)
 
 export function ChangesPanel() {
-  const { status, stageFile, unstageFile, stageAll, unstageAll, commitChanges, repoPath } = useRepoStore()
+  const { status, stageFile, unstageFile, stageAll, unstageAll, commitChanges, repoPath, refresh } = useRepoStore()
   const [commitMsg, setCommitMsg] = useState('')
   const [committing, setCommitting] = useState(false)
   const [commitError, setCommitError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<{ path: string; staged: boolean } | null>(null)
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null)
   const [diffLoading, setDiffLoading] = useState(false)
+  const [conflictFile, setConflictFile] = useState<string | null>(null)
 
   const openDiff = async (file: StatusFile, staged: boolean) => {
     if (file.untracked || !repoPath) return // no diff for untracked files or when no repo
@@ -32,8 +37,9 @@ export function ChangesPanel() {
     }
   }
 
-  const staged = status.filter(f => f.staged)
-  const unstaged = status.filter(f => f.unstaged || f.untracked)
+  const staged = status.filter(f => f.staged && !isConflict(f))
+  const unstaged = status.filter(f => (f.unstaged || f.untracked) && !isConflict(f))
+  const conflicts = status.filter(isConflict)
 
   const handleCommit = async () => {
     if (!commitMsg.trim()) return
@@ -52,6 +58,37 @@ export function ChangesPanel() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ fontSize: 12 }}>
+
+      {/* ── Conflicts section ───────────────────────────────────────────── */}
+      {conflicts.length > 0 && (
+        <>
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 shrink-0"
+            style={{
+              background: 'rgba(240,181,85,0.12)',
+              borderBottom: '1px solid var(--color-border)',
+              borderTop: '1px solid var(--color-border)',
+              color: 'var(--color-yellow)',
+              fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em'
+            }}
+          >
+            <span>⚠ Conflicts</span>
+            <span style={{
+              background: 'rgba(240,181,85,0.25)', borderRadius: 9, padding: '0 5px',
+              color: 'var(--color-yellow)', fontWeight: 400
+            }}>{conflicts.length}</span>
+          </div>
+          <div className="overflow-y-auto" style={{ maxHeight: '30%' }}>
+            {conflicts.map(f => (
+              <ConflictEntry
+                key={f.path}
+                file={f}
+                onResolve={() => setConflictFile(f.path)}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* ── Staged section ─────────────────────────────────────────────── */}
       <SectionHeader
@@ -171,6 +208,48 @@ export function ChangesPanel() {
           {committing ? 'Committing…' : `Commit${staged.length > 0 ? ` (${staged.length})` : ''}`}
         </button>
       </div>
+
+      {/* ── Merge conflict modal ────────────────────────────────────────── */}
+      {conflictFile && repoPath && (
+        <MergeConflictModal
+          repoPath={repoPath}
+          filePath={conflictFile}
+          onClose={() => setConflictFile(null)}
+          onResolved={() => {
+            setConflictFile(null)
+            refresh()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ConflictEntry({ file, onResolve }: { file: StatusFile; onResolve: () => void }) {
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-1.5"
+      style={{
+        borderBottom: '1px solid var(--color-border)',
+        color: 'var(--color-text-primary)',
+        background: 'transparent',
+      }}
+    >
+      <span style={{ fontSize: 10, fontWeight: 700, width: 14, flexShrink: 0, color: 'var(--color-yellow)' }}>!</span>
+      <span className="flex-1 truncate" style={{ fontSize: 12 }} title={file.path}>{file.path}</span>
+      <button
+        onClick={onResolve}
+        title="Open conflict resolver"
+        style={{
+          fontSize: 10, padding: '2px 7px', borderRadius: 3, border: '1px solid var(--color-yellow)',
+          background: 'rgba(240,181,85,0.12)', color: 'var(--color-yellow)',
+          cursor: 'pointer', fontFamily: 'sans-serif', flexShrink: 0
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(240,181,85,0.25)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(240,181,85,0.12)' }}
+      >
+        Resolve
+      </button>
     </div>
   )
 }

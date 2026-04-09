@@ -1,5 +1,16 @@
 import { runGit } from './runner'
+import { createStash } from './stash'
 import type { CheckoutOptions, MergeOptions, RebaseOptions, GitOperationResult, ResetMode } from '../../shared/ipc'
+
+const DIRTY_WORKING_TREE_PATTERNS = [
+  'Your local changes to the following files would be overwritten',
+  'Please commit your changes or stash them',
+  'error: uncommitted changes'
+]
+
+function isDirtyWorkingTreeError(stderr: string): boolean {
+  return DIRTY_WORKING_TREE_PATTERNS.some(p => stderr.includes(p))
+}
 
 export async function checkout(repoPath: string, opts: CheckoutOptions): Promise<GitOperationResult> {
   const args = ['checkout']
@@ -14,7 +25,16 @@ export async function checkout(repoPath: string, opts: CheckoutOptions): Promise
     args.push(opts.target)
   }
 
-  const result = await runGit(repoPath, args)
+  let result = await runGit(repoPath, args)
+
+  if (result.exitCode !== 0 && isDirtyWorkingTreeError(result.stderr)) {
+    // Auto-stash changes and retry checkout
+    const stashResult = await createStash(repoPath, 'Auto-stash before branch switch')
+    if (!stashResult.success) {
+      return { success: false, error: stashResult.error }
+    }
+    result = await runGit(repoPath, args)
+  }
 
   if (result.exitCode !== 0 && opts.isRemote && result.stderr.includes('already exists')) {
     // Local branch already exists — just switch to it

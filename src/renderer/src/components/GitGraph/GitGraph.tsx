@@ -5,6 +5,7 @@ import { CommitContextMenu } from './CommitContextMenu'
 import { MergeRebaseDialog } from '../Modals/MergeRebaseDialog'
 import { BranchContextMenu } from '../Sidebar/BranchContextMenu'
 import { StashContextMenu } from '../Sidebar/StashContextMenu'
+import { TagContextMenu } from '../Sidebar/TagContextMenu'
 
 const ROW_HEIGHT = 36
 const NODE_RADIUS = 5
@@ -401,6 +402,7 @@ function GraphLabels({ nodes, refs, onDrop }: {
   const { checkoutRef } = useRepoStore()
   const [chipMenu, setChipMenu] = useState<{ ref: RefInfo; x: number; y: number } | null>(null)
   const [stashMenu, setStashMenu] = useState<{ ref: RefInfo; x: number; y: number } | null>(null)
+  const [tagMenu, setTagMenu] = useState<{ ref: RefInfo; x: number; y: number } | null>(null)
 
   const nodeByHash = useMemo(() => {
     const m = new Map<string, GraphNode>()
@@ -464,9 +466,15 @@ function GraphLabels({ nodes, refs, onDrop }: {
                 onContextMenu={(r, x, y) => {
                   if (r.type === 'stash') {
                     setChipMenu(null)
+                    setTagMenu(null)
                     setStashMenu({ ref: r, x, y })
+                  } else if (r.type === 'tag') {
+                    setChipMenu(null)
+                    setStashMenu(null)
+                    setTagMenu({ ref: r, x, y })
                   } else {
                     setStashMenu(null)
+                    setTagMenu(null)
                     setChipMenu({ ref: r, x, y })
                   }
                 }}
@@ -489,6 +497,14 @@ function GraphLabels({ nodes, refs, onDrop }: {
           x={stashMenu.x}
           y={stashMenu.y}
           onClose={() => setStashMenu(null)}
+        />
+      )}
+      {tagMenu && (
+        <TagContextMenu
+          ref_={tagMenu.ref}
+          x={tagMenu.x}
+          y={tagMenu.y}
+          onClose={() => setTagMenu(null)}
         />
       )}
     </>

@@ -10,9 +10,10 @@ interface Props {
 }
 
 export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
-  const { checkoutRef, deleteBranch, deleteRemoteBranch, renameBranch } = useRepoStore()
+  const { checkoutRef, deleteBranch, deleteRemoteBranch, renameBranch, mergeBranch, repoPath, refs } = useRepoStore()
   const menuRef = useRef<HTMLDivElement>(null)
   const [renaming, setRenaming] = useState(false)
+  const [canFF, setCanFF] = useState(false)
   const [newName, setNewName] = useState(ref_.name.split('/').pop() ?? ref_.name)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -48,6 +49,8 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
     }
   }, [onClose])
 
+  const headBranch = refs.find(r => r.isHead && r.type === 'local')?.name ?? null
+
   const isHead = ref_.isHead
   const isLocal = ref_.type === 'local'
   const isRemote = ref_.type === 'remote'
@@ -62,9 +65,21 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
   const upstreamBranch = remoteParts.slice(1).join('/')
   const hasUpstream = !!upstreamRemote && !!upstreamBranch
 
+  useEffect(() => {
+    if (!isLocal || isHead || !repoPath || !headBranch) return
+    window.git.canFfOnly(repoPath, ref_.name, headBranch)
+      .then(setCanFF)
+      .catch(() => setCanFF(false))
+  }, [isLocal, isHead, repoPath, headBranch, ref_.name])
+
   const handleCheckout = async () => {
     onClose()
     await checkoutRef(ref_.name)
+  }
+
+  const handleFastForward = async () => {
+    onClose()
+    await mergeBranch(ref_.name, 'ff-only')
   }
 
   const handleDelete = async () => {
@@ -147,11 +162,13 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
       </div>
 
       {!isHead && isLocal && (
-
         <MenuItem onClick={handleCheckout}>Checkout</MenuItem>
       )}
       {!isHead && isRemote && (
         <MenuItem onClick={handleCheckout}>Checkout (track locally)</MenuItem>
+      )}
+      {isLocal && !isHead && canFF && (
+        <MenuItem onClick={handleFastForward}>Fast Forward</MenuItem>
       )}
 
       {isLocal && !renaming && (

@@ -103,7 +103,11 @@ export async function pull(repoPath: string, authUrl?: string, rebase = false): 
     // Get current branch to know what to merge after fetch
     const branchRes = await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])
     const branch = branchRes.stdout.trim()
-    const fetchRes = await runGit(repoPath, ['fetch', authUrl, branch])
+    // Resolve the remote name for this branch so we can update its tracking ref
+    const remoteRes = await runGit(repoPath, ['config', `branch.${branch}.remote`])
+    const remote = remoteRes.stdout.trim() || 'origin'
+    // Use a full refspec so the remote-tracking ref (origin/<branch>) is updated
+    const fetchRes = await runGit(repoPath, ['fetch', authUrl, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`])
     if (fetchRes.exitCode !== 0) return { success: false, error: fetchRes.stderr }
     if (rebase) {
       const rebaseRes = await runGit(repoPath, ['rebase', 'FETCH_HEAD'])
@@ -119,6 +123,19 @@ export async function pull(repoPath: string, authUrl?: string, rebase = false): 
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }
 
+async function getDefaultRemote(repoPath: string): Promise<string> {
+  const branchRes = await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])
+  const branch = branchRes.stdout.trim()
+  if (branch && branch !== 'HEAD') {
+    const remoteRes = await runGit(repoPath, ['config', `branch.${branch}.remote`])
+    const remote = remoteRes.stdout.trim()
+    if (remote) return remote
+  }
+  const remotesRes = await runGit(repoPath, ['remote'])
+  const first = remotesRes.stdout.trim().split('\n')[0]
+  return first || 'origin'
+}
+
 export async function push(repoPath: string, authUrl?: string): Promise<GitOperationResult> {
   if (authUrl) {
     const branchRes = await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])
@@ -126,7 +143,8 @@ export async function push(repoPath: string, authUrl?: string): Promise<GitOpera
     const result = await runGit(repoPath, ['push', authUrl, `HEAD:refs/heads/${branch}`])
     return { success: result.exitCode === 0, error: result.stderr || undefined }
   }
-  const result = await runGit(repoPath, ['push', 'origin'])
+  const remote = await getDefaultRemote(repoPath)
+  const result = await runGit(repoPath, ['push', remote])
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }
 
@@ -143,7 +161,8 @@ export async function forcePush(repoPath: string, authUrl?: string): Promise<Git
     const result = await runGit(repoPath, ['push', '--force', authUrl, `HEAD:refs/heads/${branch}`])
     return { success: result.exitCode === 0, error: result.stderr || undefined }
   }
-  const result = await runGit(repoPath, ['push', '--force', 'origin'])
+  const remote = await getDefaultRemote(repoPath)
+  const result = await runGit(repoPath, ['push', '--force', remote])
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }
 
@@ -178,7 +197,7 @@ export async function createTag(repoPath: string, name: string, hash: string): P
 }
 
 export async function pushTag(repoPath: string, name: string, authUrl?: string): Promise<GitOperationResult> {
-  const remote = authUrl ?? 'origin'
+  const remote = authUrl ?? await getDefaultRemote(repoPath)
   const result = await runGit(repoPath, ['push', remote, `refs/tags/${name}`])
   return { success: result.exitCode === 0, error: result.stderr || undefined }
 }

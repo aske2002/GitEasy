@@ -9,8 +9,11 @@ interface Props {
 }
 
 export function CommitContextMenu({ hash, x, y, onClose }: Props) {
-  const { checkoutCommit, resetToCommit, repoPath } = useRepoStore()
+  const { checkoutCommit, resetToCommit, refs } = useRepoStore()
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const headHash = refs.find(r => r.isHead)?.hash
+  const isHead = hash === headHash
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -62,13 +65,13 @@ export function CommitContextMenu({ hash, x, y, onClose }: Props) {
         boxShadow: '0 8px 30px rgba(0,0,0,0.5)'
       }}
     >
-      <MenuItem label="Checkout commit" onClick={handleCheckout} icon="⎇" />
-      <Separator />
-      <MenuLabel label="Reset to here…" />
-      <MenuItem label="Soft reset" onClick={() => handleReset('soft')} sublabel="keep staged" />
-      <MenuItem label="Mixed reset" onClick={() => handleReset('mixed')} sublabel="keep working tree" />
-      <MenuItem label="Hard reset" onClick={() => handleReset('hard')} sublabel="discard all" danger />
-      <Separator />
+      {!isHead && <MenuItem label="Checkout commit" onClick={handleCheckout} icon="⎇" />}
+      {!isHead && <Separator />}
+      {!isHead && <MenuLabel label="Reset to here…" />}
+      {!isHead && <MenuItem label="Soft reset" onClick={() => handleReset('soft')} sublabel="keep staged" />}
+      {!isHead && <MenuItem label="Mixed reset" onClick={() => handleReset('mixed')} sublabel="keep working tree" />}
+      {!isHead && <MenuItem label="Hard reset" onClick={() => handleReset('hard')} sublabel="discard all" danger />}
+      {!isHead && <Separator />}
       <MenuItem label="Copy SHA" onClick={handleCopy} icon="⬚" />
     </div>
   )

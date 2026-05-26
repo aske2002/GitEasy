@@ -6,14 +6,32 @@ interface Props {
   onCloned: (path: string) => void
 }
 
+function inferRepoNameFromUrl(input: string): string {
+  const raw = input.trim().replace(/\/$/, '')
+  if (!raw) return ''
+  if (raw.includes(':') && raw.includes('@') && !raw.startsWith('http')) {
+    const path = raw.split(':').slice(1).join(':')
+    return path.split('/').pop()?.replace(/\.git$/, '') ?? ''
+  }
+  try {
+    const url = new URL(raw)
+    return url.pathname.split('/').filter(Boolean).pop()?.replace(/\.git$/, '') ?? ''
+  } catch {
+    return raw.split('/').filter(Boolean).pop()?.replace(/\.git$/, '') ?? ''
+  }
+}
+
 export function CloneModal({ onClose, onCloned }: Props) {
   const [accounts, setAccounts] = useState<AccountInfo[]>([])
+  const [mode, setMode] = useState<'accounts' | 'url'>('url')
   const [activeHost, setActiveHost] = useState<string | null>(null)
   const [repos, setRepos] = useState<RemoteRepo[]>([])
   const [reposLoading, setReposLoading] = useState(false)
   const [reposError, setReposError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<RemoteRepo | null>(null)
+  const [cloneUrl, setCloneUrl] = useState('')
+  const [repoName, setRepoName] = useState('')
   const [destDir, setDestDir] = useState('')
   const [cloning, setCloning] = useState(false)
   const [cloneError, setCloneError] = useState<string | null>(null)
@@ -21,7 +39,10 @@ export function CloneModal({ onClose, onCloned }: Props) {
   useEffect(() => {
     window.git.listAccounts().then(list => {
       setAccounts(list)
-      if (list.length > 0) setActiveHost(list[0].host)
+      if (list.length > 0) {
+        setActiveHost(list[0].host)
+        setMode('accounts')
+      }
     })
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -52,10 +73,14 @@ export function CloneModal({ onClose, onCloned }: Props) {
   }
 
   const handleClone = async () => {
-    if (!selected || !destDir) return
+    const sourceUrl = mode === 'url' ? cloneUrl.trim() : selected?.cloneUrl
+    const name = mode === 'url'
+      ? (repoName.trim() || inferRepoNameFromUrl(cloneUrl))
+      : selected?.name
+    if (!sourceUrl || !name || !destDir) return
     setCloning(true)
     setCloneError(null)
-    const result = await window.git.cloneRepo(selected.cloneUrl, destDir, selected.name)
+    const result = await window.git.cloneRepo(sourceUrl, destDir, name)
     setCloning(false)
     if (result.success && result.clonedPath) {
       onCloned(result.clonedPath)
@@ -85,6 +110,11 @@ export function CloneModal({ onClose, onCloned }: Props) {
     borderRadius: 6, color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box'
   }
 
+  const derivedRepoName = mode === 'url'
+    ? (repoName.trim() || inferRepoNameFromUrl(cloneUrl))
+    : (selected?.name ?? '')
+  const canClone = !!destDir && !!derivedRepoName && (mode === 'url' ? !!cloneUrl.trim() : !!selected)
+
   return (
     <div style={overlay} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={modal}>
@@ -99,101 +129,164 @@ export function CloneModal({ onClose, onCloned }: Props) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 18, lineHeight: 1 }}>×</button>
         </div>
 
-        {accounts.length === 0 ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
-            No accounts connected.<br />
-            <span style={{ fontSize: 12 }}>Add a GitHub, GitLab, or Bitbucket account in Accounts settings first.</span>
-          </div>
-        ) : (
-          <>
-            {/* Account tabs */}
+        <>
             <div style={{
-              display: 'flex', gap: 0, borderBottom: '1px solid var(--color-border)',
-              padding: '0 20px', flexShrink: 0
+              display: 'flex', gap: 8, borderBottom: '1px solid var(--color-border)',
+              padding: '10px 20px', flexShrink: 0
             }}>
-              {accounts.map(acc => (
-                <button
-                  key={`${acc.host}:${acc.username}`}
-                  onClick={() => setActiveHost(acc.host)}
-                  style={{
-                    padding: '8px 14px', fontSize: 12, fontWeight: 500, border: 'none',
-                    borderBottom: activeHost === acc.host ? '2px solid var(--color-accent)' : '2px solid transparent',
-                    background: 'none', cursor: 'pointer',
-                    color: activeHost === acc.host ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                    marginBottom: -1
-                  }}
-                >
-                  {acc.provider === 'github' ? 'GitHub' : acc.provider === 'bitbucket' ? 'Bitbucket' : acc.provider === 'custom' ? 'GitLab' : 'GitLab'} · {acc.username}
-                </button>
-              ))}
+              <button
+                onClick={() => setMode('url')}
+                style={{
+                  padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--color-border)',
+                  background: mode === 'url' ? 'rgba(124,140,248,0.15)' : 'var(--color-bg-surface)',
+                  color: mode === 'url' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                  cursor: 'pointer'
+                }}
+              >
+                From URL
+              </button>
+              <button
+                onClick={() => setMode('accounts')}
+                disabled={accounts.length === 0}
+                style={{
+                  padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--color-border)',
+                  background: mode === 'accounts' ? 'rgba(124,140,248,0.15)' : 'var(--color-bg-surface)',
+                  color: mode === 'accounts' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                  cursor: accounts.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: accounts.length === 0 ? 0.5 : 1
+                }}
+              >
+                From Accounts
+              </button>
             </div>
 
-            {/* Search */}
-            <div style={{ padding: '12px 20px 8px', flexShrink: 0 }}>
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search repositories…"
-                style={inputStyle}
-                autoFocus
-              />
-            </div>
+            {mode === 'accounts' ? (
+              <>
+                {/* Account tabs */}
+                <div style={{
+                  display: 'flex', gap: 0, borderBottom: '1px solid var(--color-border)',
+                  padding: '0 20px', flexShrink: 0
+                }}>
+                  {accounts.map(acc => (
+                    <button
+                      key={`${acc.host}:${acc.username}`}
+                      onClick={() => setActiveHost(acc.host)}
+                      style={{
+                        padding: '8px 14px', fontSize: 12, fontWeight: 500, border: 'none',
+                        borderBottom: activeHost === acc.host ? '2px solid var(--color-accent)' : '2px solid transparent',
+                        background: 'none', cursor: 'pointer',
+                        color: activeHost === acc.host ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                        marginBottom: -1
+                      }}
+                    >
+                      {acc.provider === 'github' ? 'GitHub' : acc.provider === 'bitbucket' ? 'Bitbucket' : acc.provider === 'custom' ? 'GitLab' : 'GitLab'} · {acc.username}
+                    </button>
+                  ))}
+                </div>
 
-            {/* Repo list */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 8px' }}>
-              {reposLoading && (
-                <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
-                  Loading repositories…
+                {/* Search */}
+                <div style={{ padding: '12px 20px 8px', flexShrink: 0 }}>
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search repositories…"
+                    style={inputStyle}
+                    autoFocus
+                  />
                 </div>
-              )}
-              {reposError && (
-                <div style={{ padding: 16, color: 'var(--color-danger, #f87171)', fontSize: 13 }}>
-                  {reposError}
-                </div>
-              )}
-              {!reposLoading && !reposError && filtered.map(repo => (
-                <div
-                  key={repo.fullName}
-                  onClick={() => setSelected(repo)}
-                  style={{
-                    padding: '9px 10px', borderRadius: 6, cursor: 'pointer', marginBottom: 2,
-                    background: selected?.fullName === repo.fullName ? 'rgba(124,140,248,0.12)' : 'transparent',
-                    border: selected?.fullName === repo.fullName ? '1px solid rgba(124,140,248,0.3)' : '1px solid transparent'
-                  }}
-                  onMouseEnter={e => {
-                    if (selected?.fullName !== repo.fullName)
-                      (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-hover)'
-                  }}
-                  onMouseLeave={e => {
-                    if (selected?.fullName !== repo.fullName)
-                      (e.currentTarget as HTMLElement).style.background = 'transparent'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                      {repo.fullName}
-                    </span>
-                    {repo.isPrivate && (
-                      <span style={{
-                        fontSize: 10, padding: '1px 5px', borderRadius: 4,
-                        background: 'var(--color-bg-surface)', color: 'var(--color-text-muted)',
-                        border: '1px solid var(--color-border)'
-                      }}>private</span>
-                    )}
-                  </div>
-                  {repo.description && (
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {repo.description}
+
+                {/* Repo list */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 8px' }}>
+                  {accounts.length === 0 && (
+                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+                      No accounts connected.
+                    </div>
+                  )}
+                  {reposLoading && (
+                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+                      Loading repositories…
+                    </div>
+                  )}
+                  {reposError && (
+                    <div style={{ padding: 16, color: 'var(--color-danger, #f87171)', fontSize: 13 }}>
+                      {reposError}
+                    </div>
+                  )}
+                  {!reposLoading && !reposError && filtered.map(repo => (
+                    <div
+                      key={repo.fullName}
+                      onClick={() => setSelected(repo)}
+                      style={{
+                        padding: '9px 10px', borderRadius: 6, cursor: 'pointer', marginBottom: 2,
+                        background: selected?.fullName === repo.fullName ? 'rgba(124,140,248,0.12)' : 'transparent',
+                        border: selected?.fullName === repo.fullName ? '1px solid rgba(124,140,248,0.3)' : '1px solid transparent'
+                      }}
+                      onMouseEnter={e => {
+                        if (selected?.fullName !== repo.fullName)
+                          (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-hover)'
+                      }}
+                      onMouseLeave={e => {
+                        if (selected?.fullName !== repo.fullName)
+                          (e.currentTarget as HTMLElement).style.background = 'transparent'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                          {repo.fullName}
+                        </span>
+                        {repo.isPrivate && (
+                          <span style={{
+                            fontSize: 10, padding: '1px 5px', borderRadius: 4,
+                            background: 'var(--color-bg-surface)', color: 'var(--color-text-muted)',
+                            border: '1px solid var(--color-border)'
+                          }}>private</span>
+                        )}
+                      </div>
+                      {repo.description && (
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {repo.description}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {!reposLoading && !reposError && filtered.length === 0 && search && (
+                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+                      No repositories match "{search}"
                     </div>
                   )}
                 </div>
-              ))}
-              {!reposLoading && !reposError && filtered.length === 0 && search && (
-                <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
-                  No repositories match "{search}"
+              </>
+            ) : (
+              <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>
+                    Repository URL
+                  </div>
+                  <input
+                    value={cloneUrl}
+                    onChange={e => {
+                      const url = e.target.value
+                      setCloneUrl(url)
+                      if (!repoName.trim()) setRepoName(inferRepoNameFromUrl(url))
+                    }}
+                    placeholder="https://github.com/owner/repo.git"
+                    style={inputStyle}
+                    autoFocus
+                  />
                 </div>
-              )}
-            </div>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>
+                    Folder Name
+                  </div>
+                  <input
+                    value={repoName}
+                    onChange={e => setRepoName(e.target.value)}
+                    placeholder="Repository folder name"
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Clone destination */}
             <div style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
@@ -219,9 +312,9 @@ export function CloneModal({ onClose, onCloned }: Props) {
                 </button>
               </div>
 
-              {selected && destDir && (
+              {derivedRepoName && destDir && (
                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 10 }}>
-                  Will clone into: <span style={{ color: 'var(--color-text-secondary)' }}>{destDir}/{selected.name}</span>
+                  Will clone into: <span style={{ color: 'var(--color-text-secondary)' }}>{destDir}/{derivedRepoName}</span>
                 </div>
               )}
 
@@ -244,11 +337,11 @@ export function CloneModal({ onClose, onCloned }: Props) {
                 </button>
                 <button
                   onClick={handleClone}
-                  disabled={!selected || !destDir || cloning}
+                  disabled={!canClone || cloning}
                   style={{
                     padding: '7px 16px', fontSize: 13, fontWeight: 600, borderRadius: 6, cursor: 'pointer',
                     background: 'var(--color-accent)', border: 'none', color: 'white',
-                    opacity: (!selected || !destDir || cloning) ? 0.5 : 1
+                    opacity: (!canClone || cloning) ? 0.5 : 1
                   }}
                 >
                   {cloning ? 'Cloning…' : 'Clone'}
@@ -256,7 +349,6 @@ export function CloneModal({ onClose, onCloned }: Props) {
               </div>
             </div>
           </>
-        )}
       </div>
     </div>
   )

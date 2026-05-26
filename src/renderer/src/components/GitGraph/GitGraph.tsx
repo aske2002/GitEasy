@@ -50,6 +50,10 @@ export function GitGraph() {
   }, [refs])
 
   const graphWidth = getGraphWidth(graphNodes)
+  const rowContentLeft = Math.min(
+    graphWidth,
+    Math.max(LABEL_AREA_WIDTH + 120, Math.floor(containerSize.w * 0.45))
+  )
   const totalHeight = graphNodes.length * ROW_HEIGHT
 
   // ── Resize observer ──────────────────────────────────────────────────────────
@@ -227,9 +231,7 @@ export function GitGraph() {
               nodes={graphNodes}
               refs={refs}
               selectedHash={selectedHash}
-              scrollTop={scrollTopRef}
-              containerHeight={containerSize.h}
-              graphWidth={graphWidth}
+              rowContentLeft={rowContentLeft}
               onRowClick={handleRowClick}
               onContextMenu={handleContextMenu}
               onDrop={openPendingOp}
@@ -281,30 +283,17 @@ export function GitGraph() {
 
 // VirtualRows: render only visible DOM rows for commit metadata
 function VirtualRows({
-  nodes, refs, selectedHash, scrollTop, containerHeight, graphWidth,
+  nodes, refs, selectedHash, rowContentLeft,
   onRowClick, onContextMenu, onDrop
 }: {
   nodes: GraphNode[]
   refs: RefInfo[]
   selectedHash: string | null
-  scrollTop: React.MutableRefObject<number>
-  containerHeight: number
-  graphWidth: number
+  rowContentLeft: number
   onRowClick: (hash: string) => void
   onContextMenu: (e: React.MouseEvent, hash: string) => void
   onDrop: (source: string, target: string) => void
 }) {
-  const [, forceUpdate] = useState(0)
-  const rafRef2 = useRef(0)
-
-  // Re-render on scroll via RAF
-  useEffect(() => {
-    const el = scrollTop as any // ref is passed
-    // We rely on parent's re-render from paint(), but for row visibility
-    // we do a simple subscription approach
-    return () => {}
-  }, [])
-
   const refsByHash = new Map<string, RefInfo[]>()
   for (const ref of refs) {
     if (!refsByHash.has(ref.hash)) refsByHash.set(ref.hash, [])
@@ -330,7 +319,7 @@ function VirtualRows({
             style={{
               position: 'absolute',
               top: i * ROW_HEIGHT,
-              left: graphWidth,
+              left: rowContentLeft,
               right: 0,
               height: ROW_HEIGHT,
               display: 'flex',
@@ -591,43 +580,6 @@ function GraphBranchLabel({ ref_, color, onDrop, onDoubleClick, onContextMenu }:
       }}
     >
       {isHead ? '✓ ' : isTag ? '⚑ ' : isStash ? '✦ ' : '⎇ '}{label}
-    </span>
-  )
-}
-
-function RefPill({ ref_, color }: { ref_: RefInfo; color: string }) {
-  const isHead = ref_.isHead
-  const isTag = ref_.type === 'tag'
-  const isLocal = ref_.type === 'local'
-  const label = ref_.name.split('/').pop() ?? ref_.name
-
-  return (
-    <span
-      draggable={isLocal}
-      onDragStart={e => {
-        e.dataTransfer.setData('branch', ref_.name)
-        e.dataTransfer.effectAllowed = 'move'
-        e.stopPropagation()
-      }}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 2,
-        padding: '1px 5px',
-        borderRadius: 4,
-        fontSize: 10,
-        fontWeight: 600,
-        background: isHead ? color : 'var(--color-bg-surface)',
-        color: isHead ? '#fff' : color,
-        border: `1px solid ${isHead ? color : color + '80'}`,
-        maxWidth: 110,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        cursor: isLocal ? 'grab' : 'default',
-        userSelect: 'none'
-      }} title={isLocal ? `Drag to merge/rebase onto another branch` : ref_.name}>
-      {isTag ? '⚑ ' : isHead ? '● ' : ''}{label}
     </span>
   )
 }

@@ -32,7 +32,8 @@ echo "→ Creating tag v$VERSION"
 git tag "v$VERSION"
 
 echo "→ Pushing commit and tag"
-git push && git push origin "v$VERSION"
+git push
+git push origin "v$VERSION"
 
 echo ""
 echo "✓ Released v$VERSION — GitHub Actions will build and publish to GitHub Releases."

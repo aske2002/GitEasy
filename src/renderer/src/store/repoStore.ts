@@ -70,6 +70,7 @@ export interface RepoActions {
 
   stageFile: (filePath: string) => Promise<void>
   unstageFile: (filePath: string) => Promise<void>
+  discardFile: (filePath: string) => Promise<void>
   stageAll: () => Promise<void>
   unstageAll: () => Promise<void>
   commitChanges: (message: string) => Promise<{ success: boolean; error?: string }>
@@ -403,6 +404,20 @@ export const useRepoStore = create<Store>((set, get) => ({
     if (!repoPath) return
     await window.git.unstageFile(repoPath, filePath)
     await get().refresh()
+  },
+
+  discardFile: async (filePath) => {
+    const { repoPath } = get()
+    if (!repoPath) return
+    set({ operationInProgress: true, operationError: null })
+    try {
+      await window.git.discardFile(repoPath, filePath)
+      await get().refresh()
+    } catch (e: any) {
+      set({ operationError: e?.message ?? 'Failed to discard file changes' })
+    } finally {
+      set({ operationInProgress: false })
+    }
   },
 
   stageAll: async () => {

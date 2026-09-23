@@ -46,6 +46,7 @@ export const IPC = {
   // Staging & commit
   STAGE_FILE: 'git:stageFile',
   UNSTAGE_FILE: 'git:unstageFile',
+  DISCARD_FILE: 'git:discardFile',
   STAGE_ALL: 'git:stageAll',
   UNSTAGE_ALL: 'git:unstageAll',
   COMMIT: 'git:commit',

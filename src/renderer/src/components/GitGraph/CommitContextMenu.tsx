@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function CommitContextMenu({ hash, x, y, onClose }: Props) {
-  const { checkoutCommit, resetToCommit, refs } = useRepoStore()
+  const { checkoutCommit, resetToCommit, createBranchFrom, refs } = useRepoStore()
   const menuRef = useRef<HTMLDivElement>(null)
 
   const headHash = refs.find(r => r.isHead)?.hash
@@ -44,6 +44,14 @@ export function CommitContextMenu({ hash, x, y, onClose }: Props) {
     onClose()
   }
 
+  const handleCreateBranch = () => {
+    const input = prompt('Create new branch at this commit:', `branch-${hash.slice(0, 7)}`)
+    const name = input?.trim()
+    if (!name) return
+    createBranchFrom(name, hash)
+    onClose()
+  }
+
   const handleCopy = () => {
     navigator.clipboard.writeText(hash)
     onClose()
@@ -66,6 +74,7 @@ export function CommitContextMenu({ hash, x, y, onClose }: Props) {
       }}
     >
       {!isHead && <MenuItem label="Checkout commit" onClick={handleCheckout} icon="⎇" />}
+      <MenuItem label="Create branch here…" onClick={handleCreateBranch} icon="⎇" />
       {!isHead && <Separator />}
       {!isHead && <MenuLabel label="Reset to here…" />}
       {!isHead && <MenuItem label="Soft reset" onClick={() => handleReset('soft')} sublabel="keep staged" />}

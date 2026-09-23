@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRepoStore } from '../../store/repoStore'
 import type { DiffFile, StatusFile } from '../../../../shared/ipc'
 import { DiffViewer } from '../DiffViewer/DiffViewer'
@@ -8,7 +8,7 @@ const CONFLICT_CODES = new Set(['UU', 'AA', 'DD', 'AU', 'UA', 'DU', 'UD'])
 const isConflict = (f: StatusFile) => CONFLICT_CODES.has(f.statusCode)
 
 export function ChangesPanel() {
-  const { status, stageFile, unstageFile, stageAll, unstageAll, commitChanges, repoPath, refresh } = useRepoStore()
+  const { status, stageFile, unstageFile, discardFile, stageAll, unstageAll, commitChanges, repoPath, refresh } = useRepoStore()
   const [commitMsg, setCommitMsg] = useState('')
   const [committing, setCommitting] = useState(false)
   const [commitError, setCommitError] = useState<string | null>(null)
@@ -16,6 +16,8 @@ export function ChangesPanel() {
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null)
   const [diffLoading, setDiffLoading] = useState(false)
   const [conflictFile, setConflictFile] = useState<string | null>(null)
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; file: StatusFile } | null>(null)
+  const ctxMenuRef = useRef<HTMLDivElement>(null)
 
   const openDiff = async (file: StatusFile, staged: boolean) => {
     if (file.untracked || !repoPath) return // no diff for untracked files or when no repo
@@ -55,6 +57,41 @@ export function ChangesPanel() {
   }
 
   const canCommit = staged.length > 0 && commitMsg.trim().length > 0 && !committing
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node)) {
+        setCtxMenu(null)
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setCtxMenu(null)
+    }
+
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
+
+  const handleFileContextMenu = (event: React.MouseEvent, file: StatusFile) => {
+    event.preventDefault()
+    setCtxMenu({ x: event.clientX, y: event.clientY, file })
+  }
+
+  const handleDiscardFile = async (file: StatusFile) => {
+    setCtxMenu(null)
+    const confirmed = window.confirm(`Discard all changes for "${file.path}"?`)
+    if (!confirmed) return
+
+    await discardFile(file.path)
+    if (selectedFile?.path === file.path) {
+      setSelectedFile(null)
+      setDiffFile(null)
+    }
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ fontSize: 12 }}>
@@ -106,6 +143,7 @@ export function ChangesPanel() {
               file={f}
               selected={selectedFile?.path === f.path && selectedFile?.staged === true}
               onDiffClick={() => openDiff(f, true)}
+              onContextMenu={e => handleFileContextMenu(e, f)}
               action={{ label: '−', title: 'Unstage', onClick: () => unstageFile(f.path) }}
             />
           ))}
@@ -128,6 +166,8 @@ export function ChangesPanel() {
               file={f}
               selected={selectedFile?.path === f.path && selectedFile?.staged === false}
               onDiffClick={() => openDiff(f, false)}
+              onContextMenu={e => handleFileContextMenu(e, f)}
+              onDiscard={() => handleDiscardFile(f)}
               action={{ label: '+', title: 'Stage', onClick: () => stageFile(f.path) }}
             />
           ))}
@@ -221,6 +261,84 @@ export function ChangesPanel() {
           }}
         />
       )}
+
+      {ctxMenu && (
+        <ChangeFileContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          menuRef={ctxMenuRef}
+          onClose={() => setCtxMenu(null)}
+          onDiscard={() => handleDiscardFile(ctxMenu.file)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ChangeFileContextMenu({
+  x,
+  y,
+  menuRef,
+  onClose,
+  onDiscard
+}: {
+  x: number
+  y: number
+  menuRef: React.RefObject<HTMLDivElement | null>
+  onClose: () => void
+  onDiscard: () => void
+}) {
+  const [hover, setHover] = useState(false)
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: 'fixed',
+        left: x,
+        top: y,
+        zIndex: 9999,
+        minWidth: 190,
+        background: 'var(--color-bg-surface)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 8,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        padding: '4px 0',
+        fontSize: 12
+      }}
+    >
+      <button
+        onClick={onDiscard}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          border: 'none',
+          background: hover ? 'var(--color-bg-hover)' : 'transparent',
+          color: hover ? '#ff6b6b' : 'var(--color-red)',
+          padding: '6px 14px',
+          cursor: 'pointer',
+          fontSize: 12
+        }}
+      >
+        Discard changes
+      </button>
+      <button
+        onClick={onClose}
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          border: 'none',
+          background: 'transparent',
+          color: 'var(--color-text-secondary)',
+          padding: '6px 14px',
+          cursor: 'pointer',
+          fontSize: 12
+        }}
+      >
+        Cancel
+      </button>
     </div>
   )
 }
@@ -290,11 +408,13 @@ function SectionHeader({ label, count, action }: {
   )
 }
 
-function FileEntry({ file, action, selected, onDiffClick }: {
+function FileEntry({ file, action, selected, onDiffClick, onContextMenu, onDiscard }: {
   file: StatusFile
   action: { label: string; title: string; onClick: () => void }
   selected?: boolean
   onDiffClick?: () => void
+  onContextMenu?: (event: React.MouseEvent) => void
+  onDiscard?: () => void
 }) {
   const statusLabel = statusBadge(file.statusCode)
   return (
@@ -307,6 +427,7 @@ function FileEntry({ file, action, selected, onDiffClick }: {
         cursor: file.untracked ? 'default' : 'pointer'
       }}
       onClick={onDiffClick}
+      onContextMenu={onContextMenu}
       onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'var(--color-bg-hover)' }}
       onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
     >
@@ -314,6 +435,22 @@ function FileEntry({ file, action, selected, onDiffClick }: {
         {statusLabel}
       </span>
       <span className="flex-1 truncate" style={{ fontSize: 12 }} title={file.path}>{file.path}</span>
+      {onDiscard && (
+        <button
+          onClick={e => { e.stopPropagation(); onDiscard() }}
+          title="Discard changes"
+          style={{
+            width: 18, height: 18, borderRadius: 3, border: 'none', flexShrink: 0,
+            background: 'var(--color-bg-hover)', color: 'var(--color-text-secondary)',
+            cursor: 'pointer', fontSize: 12, lineHeight: '16px', display: 'flex',
+            alignItems: 'center', justifyContent: 'center'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-red)'; e.currentTarget.style.color = '#fff' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-bg-hover)'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
+        >
+          ↺
+        </button>
+      )}
       <button
         onClick={e => { e.stopPropagation(); action.onClick() }}
         title={action.title}

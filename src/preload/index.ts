@@ -34,6 +34,8 @@ const gitApi = {
     ipcRenderer.invoke(IPC.STAGE_FILE, repoPath, filePath),
   unstageFile: (repoPath: string, filePath: string): Promise<void> =>
     ipcRenderer.invoke(IPC.UNSTAGE_FILE, repoPath, filePath),
+  discardFile: (repoPath: string, filePath: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.DISCARD_FILE, repoPath, filePath),
   stageAll: (repoPath: string): Promise<void> =>
     ipcRenderer.invoke(IPC.STAGE_ALL, repoPath),
   unstageAll: (repoPath: string): Promise<void> =>

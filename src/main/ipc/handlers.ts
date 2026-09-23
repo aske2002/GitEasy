@@ -5,7 +5,7 @@ import Store from 'electron-store'
 import { IPC } from '../../shared/ipc'
 import { getGraph } from '../git/log'
 import { getRefs } from '../git/refs'
-import { getStatus, stageFile, unstageFile, stageAll, unstageAll, commitChanges } from '../git/status'
+import { getStatus, stageFile, unstageFile, discardFileChanges, stageAll, unstageAll, commitChanges } from '../git/status'
 import { createStash, popStash, applyStash, dropStash } from '../git/stash'
 import { getConflictContent, resolveConflict } from '../git/conflict'
 import { verifyAndAddAccount, listAccounts, removeAccount, getRemoteAuthUrl, listRemoteRepos, buildAuthCloneUrl } from '../git/auth'
@@ -100,6 +100,10 @@ export function registerHandlers(store: Store<{ recentRepos: string[] }>): void 
 
   ipcMain.handle(IPC.UNSTAGE_FILE, async (_event, repoPath: string, filePath: string) => {
     await unstageFile(repoPath, filePath)
+  })
+
+  ipcMain.handle(IPC.DISCARD_FILE, async (_event, repoPath: string, filePath: string) => {
+    await discardFileChanges(repoPath, filePath)
   })
 
   ipcMain.handle(IPC.STAGE_ALL, async (_event, repoPath: string) => {

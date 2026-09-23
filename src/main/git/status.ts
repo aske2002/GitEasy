@@ -57,6 +57,20 @@ export async function unstageAll(repoPath: string): Promise<void> {
   }
 }
 
+export async function discardFileChanges(repoPath: string, filePath: string): Promise<void> {
+  // Unstage first so staged-only changes (including new files) can be discarded too.
+  await unstageFile(repoPath, filePath)
+
+  const restoreResult = await runGit(repoPath, ['restore', '--worktree', '--', filePath])
+  if (restoreResult.exitCode === 0) return
+
+  // If restore fails, the path is likely untracked; remove it with clean.
+  const cleanResult = await runGit(repoPath, ['clean', '-fd', '--', filePath])
+  if (cleanResult.exitCode !== 0) {
+    throw new Error(cleanResult.stderr || cleanResult.stdout || restoreResult.stderr || 'Failed to discard file changes')
+  }
+}
+
 export async function commitChanges(repoPath: string, message: string): Promise<{ success: boolean; error?: string }> {
   const result = await runGit(repoPath, ['commit', '-m', message])
   if (result.exitCode !== 0) {

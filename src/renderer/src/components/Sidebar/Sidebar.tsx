@@ -19,7 +19,7 @@ interface PendingOp {
 }
 
 export function Sidebar() {
-  const { refs, checkoutRef, mergeBranch, rebaseBranch, status, createStash, applyStash, operationInProgress } = useRepoStore()
+  const { refs, checkoutRef, mergeBranch, rebaseBranch, status, createStash, applyStash, createBranchFrom, operationInProgress } = useRepoStore()
   const [tab, setTab] = useState<'branches' | 'changes'>('branches')
   const [expanded, setExpanded] = useState<Record<Section, boolean>>({
     local: true, remote: false, stashes: true, tags: false
@@ -74,6 +74,21 @@ export function Sidebar() {
   const changesCount = status.filter(f => f.staged || f.unstaged || f.untracked).length
   const hasChanges = changesCount > 0
 
+  const handleCreateBranch = async () => {
+    const headRef = refs.find(r => r.isHead && r.type === 'local') ?? refs.find(r => r.isHead)
+    const defaultName = headRef?.type === 'local'
+      ? `${headRef.name.split('/').pop() ?? 'branch'}-new`
+      : 'new-branch'
+    const input = window.prompt('New branch name:', defaultName)
+    const name = input?.trim()
+    if (!name) return
+
+    const from = headRef?.type === 'local'
+      ? headRef.name
+      : headRef?.hash ?? 'HEAD'
+    await createBranchFrom(name, from)
+  }
+
   return (
     <>
       <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -112,6 +127,23 @@ export function Sidebar() {
             count={local.length}
             open={expanded.local}
             onToggle={() => toggle('local')}
+            action={
+              <button
+                onClick={e => {
+                  e.stopPropagation()
+                  void handleCreateBranch()
+                }}
+                title="Create new branch"
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  padding: '1px 6px', borderRadius: 3, color: 'var(--color-text-muted)', fontSize: 12
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+              >
+                +
+              </button>
+            }
           >
             {local.map(ref => (
               <DraggableBranchRow

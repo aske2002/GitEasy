@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
-  const { checkoutRef, deleteBranch, deleteRemoteBranch, renameBranch, mergeBranch, repoPath, refs } = useRepoStore()
+  const { checkoutRef, deleteBranch, deleteRemoteBranch, renameBranch, createBranchFrom, mergeBranch, repoPath, refs } = useRepoStore()
   const menuRef = useRef<HTMLDivElement>(null)
   const [renaming, setRenaming] = useState(false)
   const [canFF, setCanFF] = useState(false)
@@ -80,6 +80,15 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
   const handleFastForward = async () => {
     onClose()
     await mergeBranch(ref_.name, 'ff-only')
+  }
+
+  const handleCreateFromBranch = async () => {
+    const defaultName = `${displayName}-new`
+    const input = window.prompt(`Create new branch from "${ref_.name}"`, defaultName)
+    const name = input?.trim()
+    if (!name) return
+    onClose()
+    await createBranchFrom(name, ref_.name)
   }
 
   const handleDelete = async () => {
@@ -170,6 +179,8 @@ export function BranchContextMenu({ ref_, x, y, onClose }: Props) {
       {isLocal && !isHead && canFF && (
         <MenuItem onClick={handleFastForward}>Fast Forward</MenuItem>
       )}
+
+      <MenuItem onClick={handleCreateFromBranch}>Create Branch From…</MenuItem>
 
       {isLocal && !renaming && (
         <MenuItem onClick={handleRename}>Rename…</MenuItem>
